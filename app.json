@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "Ringee",
+    "slug": "ringee",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/apple-touch-icon.png",
+    "scheme": "ringee",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ringee.app",
+      "icon": "./assets/images/apple-touch-icon.png",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification",
+          "voip",
+          "audio"
+        ],
+        "NSMicrophoneUsageDescription": "Ringee needs microphone access to place and receive calls."
+      }
+    },
+    "android": {
+      "package": "com.ringee.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-chrome-512x512.png",
+        "backgroundColor": "#ffffff"
+      },
+      "icon": "./assets/images/android-chrome-512x512.png",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_PHONE_CALL"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon-32x32.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/apple-touch-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-chrome-192x192.png",
+          "color": "#0A0A0A"
+        }
+      ],
+      [
+        "react-native-bottom-tabs",
+        {
+          "theme": "material3"
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5f649f69-9aa0-4636-aa13-c0b2afc63187"
+      }
+    },
+    "owner": "padillacore"
+  }
+}
