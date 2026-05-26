@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ringee.app",
+      "bundleIdentifier": "com.ringee.mobile",
       "icon": "./assets/images/apple-touch-icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -21,7 +21,7 @@
       }
     },
     "android": {
-      "package": "com.ringee.app",
+      "package": "com.ringee.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-chrome-512x512.png",
         "backgroundColor": "#ffffff"
