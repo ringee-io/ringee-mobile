@@ -35,7 +35,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="ringee"/>
-        <data android:scheme="exp+ringee-mobile"/>
+        <data android:scheme="exp+ringee"/>
       </intent-filter>
     </activity>
   </application>
