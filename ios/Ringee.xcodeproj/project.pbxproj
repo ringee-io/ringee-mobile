@@ -23,7 +23,7 @@
 		3D4C426D433F55000DBDF686 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Ringee/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		4179C44890596111AA7EC1F4 /* Pods-Ringee.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Ringee.release.xcconfig"; path = "Target Support Files/Pods-Ringee/Pods-Ringee.release.xcconfig"; sourceTree = "<group>"; };
 		704C7C24CB7EF4DD84811B30 /* Pods-Ringee.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Ringee.debug.xcconfig"; path = "Target Support Files/Pods-Ringee/Pods-Ringee.debug.xcconfig"; sourceTree = "<group>"; };
-		70DF1DD8A687C69B92270345 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Ringee/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		70DF1DD8A687C69B92270345 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Ringee/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		8226AE9E94E8513750FD7DAA /* libPods-Ringee.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Ringee.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Ringee/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
@@ -73,7 +73,6 @@
 				704C7C24CB7EF4DD84811B30 /* Pods-Ringee.debug.xcconfig */,
 				4179C44890596111AA7EC1F4 /* Pods-Ringee.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -370,6 +369,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Ringee/Ringee.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 688DN3SY7M;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -388,7 +388,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.ringee.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ringee.com;
 				PRODUCT_NAME = Ringee;
 				SWIFT_OBJC_BRIDGING_HEADER = "Ringee/Ringee-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -406,6 +406,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Ringee/Ringee.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 688DN3SY7M;
 				INFOPLIST_FILE = Ringee/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -419,7 +420,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.ringee.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ringee.com;
 				PRODUCT_NAME = Ringee;
 				SWIFT_OBJC_BRIDGING_HEADER = "Ringee/Ringee-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
