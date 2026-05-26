@@ -77,7 +77,6 @@
       "expo": "$expo",
       "expo-asset": "~55.0.17",
       "expo-constants": "$expo-constants",
-      "expo-file-system": "$expo-file-system",
       "expo-font": "$expo-font",
       "expo-keep-awake": "~55.0.8",
       "expo-modules-autolinking": "~55.0.23",
