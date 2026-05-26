@@ -63,6 +63,7 @@
     "@babel/core": "^7.25.2",
     "@types/react": "~19.2.10",
     "apple-signin-auth": "^2.0.0",
+    "babel-preset-expo": "~55.0.22",
     "eslint": "8.57.1",
     "eslint-config-expo": "~55.0.1",
     "react-apple-signin-auth": "^1.1.2",
