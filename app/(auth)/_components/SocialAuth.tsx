@@ -1,24 +1,53 @@
-import SignInWith from '@/components/auth/SignInWith'
-import React from 'react'
-import { Text, View } from 'react-native'
+import SignInWith from '@/components/auth/SignInWith';
+import { useTheme } from '@/hooks/useTheme';
+import React from 'react';
+import { Platform, Text, View } from 'react-native';
 
 export default function SocialAuth() {
+  const t = useTheme();
+  const showApple = Platform.OS === 'ios';
+
   return (
     <>
-      <View className="flex-row gap-3 mb-6">
-        <View className="flex-1">
-          <SignInWith strategy="oauth_google" variant="button" />
-        </View>
-        {/* <View className="flex-1">
-          <SignInWith strategy="oauth_apple" variant="button" />
-        </View> */}
+      <View
+        style={{
+          marginBottom: 20,
+          flexDirection: showApple ? 'row' : 'column',
+          gap: 10,
+          justifyContent: 'space-around',
+        }}
+      >
+        {showApple ? (
+          <SignInWith strategy="oauth_apple" variant="compact" />
+        ) : null}
+        <SignInWith
+          strategy="oauth_google"
+          variant={showApple ? 'compact' : 'button'}
+        />
       </View>
 
-      <View className="flex-row items-center mb-6">
-        <View className="flex-1 h-px bg-gray-300" />
-        <Text className="mx-4 text-gray-600 text-sm">or</Text>
-        <View className="flex-1 h-px bg-gray-300" />
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginBottom: 20,
+        }}
+      >
+        <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
+        <Text
+          style={{
+            marginHorizontal: 14,
+            color: t.textMuted,
+            fontSize: 12,
+            fontWeight: '500',
+            textTransform: 'uppercase',
+            letterSpacing: 0.8,
+          }}
+        >
+          or
+        </Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
       </View>
     </>
-  )
-} 
+  );
+}

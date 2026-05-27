@@ -1,24 +1,30 @@
-import React from 'react'
-import { Text, TouchableOpacity, View } from 'react-native'
+import React from 'react';
+import { Pressable, Text } from 'react-native';
+
+import { useTheme } from '@/hooks/useTheme';
 
 interface AuthLinkProps {
-  onPress: () => void
-  text: string
-  align?: 'left' | 'center' | 'right'
+  onPress: () => void;
+  text: string;
+  align?: 'left' | 'center' | 'right';
 }
 
 export default function AuthLink({ onPress, text, align = 'center' }: AuthLinkProps) {
-  const alignmentClass = {
-    left: 'justify-start',
-    center: 'justify-center', 
-    right: 'justify-end'
-  }[align]
+  const t = useTheme();
+  const alignSelf =
+    align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
 
   return (
-    <View className={`flex-row ${alignmentClass}`}>
-      <TouchableOpacity onPress={onPress}>
-        <Text className="text-sm font-semibold">{text}</Text>
-      </TouchableOpacity>
-    </View>
-  )
-} 
+    <Pressable
+      onPress={onPress}
+      hitSlop={10}
+      style={({ pressed }) => ({
+        alignSelf,
+        paddingVertical: 6,
+        opacity: pressed ? 0.5 : 1,
+      })}
+    >
+      <Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{text}</Text>
+    </Pressable>
+  );
+}

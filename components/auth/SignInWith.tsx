@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Alert, Text, TouchableOpacity } from 'react-native'
+import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react-native'
 
+import { useTheme } from '@/hooks/useTheme'
 import { isClerkAPIResponseError, useSSO } from '@clerk/clerk-expo'
 import { FontAwesome } from '@expo/vector-icons'
 import * as AuthSession from 'expo-auth-session'
@@ -9,16 +10,14 @@ import * as WebBrowser from 'expo-web-browser'
 
 type SignInWithProps = {
   strategy: 'oauth_google' | 'oauth_apple'
-  variant?: 'icon' | 'button'
+  variant?: 'icon' | 'button' | 'compact'
 }
 
 export const useWarmUpBrowser = () => {
   useEffect(() => {
-    // Preloads the browser for Android devices to reduce authentication load time
-    // See: https://docs.expo.dev/guides/authentication/#improving-user-experience
+    if (Platform.OS === 'web') return
     void WebBrowser.warmUpAsync()
     return () => {
-      // Cleanup: closes browser when component unmounts
       void WebBrowser.coolDownAsync()
     }
   }, [])
@@ -36,10 +35,10 @@ const strategyLabels = {
 
 export default function SignInWith({ strategy, variant = 'icon' }: SignInWithProps) {
   useWarmUpBrowser()
+  const t = useTheme()
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
-  // Use the `useSSO()` hook to access the `startSSOFlow()` method
   const { startSSOFlow } = useSSO()
 
   const onPress = useCallback(async () => {
@@ -47,102 +46,154 @@ export default function SignInWith({ strategy, variant = 'icon' }: SignInWithPro
     setIsLoading(true)
 
     try {
-      // Start the authentication process by calling `startSSOFlow()`
-      const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
-        strategy,
-        // For web, defaults to current path
-        // For native, you must pass a scheme, like AuthSession.makeRedirectUri({ scheme, path })
-        redirectUrl: AuthSession.makeRedirectUri(),
+      const redirectUrl = AuthSession.makeRedirectUri({
+        scheme: 'ringee',
+        path: 'sso-callback',
       })
 
-      // If sign in was successful, set the active session and redirect
-      if (createdSessionId) {
-        setActive!({ session: createdSessionId })
-        router.replace('/(tabs)' as any)
-      } else {
-        // If there is no `createdSessionId`, check if we have signIn or signUp objects
-        // This means the flow started but needs completion
-        if (signIn || signUp) {
-          Alert.alert(
-            'Additional Steps Required',
-            'Please complete the additional security steps to continue.',
-            [{ text: 'OK' }]
-          )
-        } else {
-          // No session, no signIn/signUp objects - flow was likely cancelled
-          console.log('OAuth flow was cancelled or incomplete')
-        }
+      const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
+        strategy,
+        redirectUrl,
+      })
+
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId })
+        router.replace('/(tabs)/today' as any)
+        return
+      }
+
+      if (signIn || signUp) {
+        Alert.alert(
+          'Additional steps required',
+          'Please complete the additional security steps to continue.',
+          [{ text: 'OK' }],
+        )
       }
     } catch (err) {
-      console.error('OAuth error:', JSON.stringify(err, null, 2))
-      
       let errorMessage = 'Something went wrong. Please try again.'
-      
+
       if (isClerkAPIResponseError(err)) {
-        // Handle specific Clerk errors
         const firstError = err.errors[0]
         if (firstError) {
           errorMessage = firstError.longMessage || firstError.message
         }
       } else if (err instanceof Error) {
-        // Handle general errors
-        if (err.message.includes('cancelled') || 
-            err.message.includes('dismissed') || 
-            err.message.includes('user_cancelled')) {
-          // User cancelled the OAuth flow, don't show error and don't mark as connected
-          console.log('User cancelled OAuth flow')
+        const msg = err.message.toLowerCase()
+        if (
+          msg.includes('cancelled') ||
+          msg.includes('canceled') ||
+          msg.includes('dismissed') ||
+          msg.includes('user_cancelled')
+        ) {
           setIsLoading(false)
           return
         }
         errorMessage = err.message
       }
-      
-      // Only show error for actual failures, not cancellations
-      Alert.alert(
-        `${strategyLabels[strategy]} Sign In Failed`,
-        errorMessage,
-        [{ text: 'Try Again' }]
-      )
+
+      Alert.alert(`${strategyLabels[strategy]} sign in failed`, errorMessage, [
+        { text: 'Try again' },
+      ])
     } finally {
       setIsLoading(false)
     }
   }, [strategy, startSSOFlow, isLoading, router])
 
+  const label = strategyLabels[strategy]
+  const iconName = strategyIcons[strategy]
+
+  if (variant === 'compact') {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={`Continue with ${label}`}
+        // style={({ pressed }) => ({
+          // flex: 1,
+          // height: 52,
+          // flexDirection: 'row',
+          // alignItems: 'center',
+          // justifyContent: 'center',
+          // gap: 8,
+          // borderRadius: 14,
+          // borderCurve: 'continuous',
+          // borderWidth: 1,
+          // borderColor: t.border,
+          // backgroundColor: t.surface,
+          // opacity: isLoading ? 0.6 : pressed ? 0.85 : 1,
+        // })}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color={t.text} />
+        ) : (
+          <FontAwesome name={iconName} size={18} color={t.text} style={{ marginLeft: 15 }} />
+        )}
+        <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
+          {label}
+        </Text>
+      </Pressable>
+    )
+  }
+
   if (variant === 'button') {
     return (
-      <TouchableOpacity 
-        onPress={onPress} 
+      <Pressable
+        onPress={onPress}
         disabled={isLoading}
-        className={`flex-row items-center justify-center bg-white border border-gray-300 rounded-lg py-3 px-4 ${
-          isLoading ? 'opacity-50' : ''
-        }`}
+        accessibilityRole="button"
+        accessibilityLabel={`Continue with ${label}`}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: 52,
+          paddingHorizontal: 16,
+          borderRadius: 14,
+          borderCurve: 'continuous',
+          borderWidth: 1,
+          borderColor: t.border,
+          backgroundColor: t.surface,
+          opacity: isLoading ? 0.6 : pressed ? 0.85 : 1,
+        })}
       >
-        <FontAwesome
-          name={strategyIcons[strategy]}
-          size={20}
-          color="#374151"
-          style={{ marginRight: 12 }}
-        />
-        <Text className="text-gray-700 font-medium">
-          {isLoading ? 'Signing in...' : strategyLabels[strategy]}
+        {isLoading ? (
+          <ActivityIndicator size="small" color={t.text} style={{ marginRight: 10 }} />
+        ) : (
+          <FontAwesome
+            name={iconName}
+            size={18}
+            color={t.text}
+            style={{ marginRight: 10 }}
+          />
+        )}
+        <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
+          {isLoading ? 'Signing in…' : `Continue with ${label}`}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     )
   }
 
   return (
-    <TouchableOpacity 
-      onPress={onPress} 
+    <Pressable
+      onPress={onPress}
       disabled={isLoading}
-      className={`w-16 h-16 items-center justify-center rounded-xl bg-white border border-gray-200 shadow-sm ${
-        isLoading ? 'opacity-50' : ''
-      }`}
+      accessibilityRole="button"
+      accessibilityLabel={`Sign in with ${label}`}
+      style={({ pressed }) => ({
+        width: 64,
+        height: 64,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 16,
+        borderCurve: 'continuous',
+        borderWidth: 1,
+        borderColor: t.border,
+        backgroundColor: t.surface,
+        opacity: isLoading ? 0.6 : pressed ? 0.85 : 1,
+      })}
     >
-      <FontAwesome
-        name={strategyIcons[strategy]}
-        size={32}
-        color="#374151"
-      />
-    </TouchableOpacity>
+      <FontAwesome name={iconName} size={28} color={t.text} />
+    </Pressable>
   )
 }

@@ -1,129 +1,158 @@
-import React from 'react'
-import {
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native'
+import { isClerkAPIResponseError, useSignUp } from '@clerk/clerk-expo';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import { isClerkAPIResponseError, useSignUp } from '@clerk/clerk-expo'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'expo-router'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
+import { useTheme } from '@/hooks/useTheme';
+import AuthBackButton from './_components/AuthBackButton';
+import AuthButton from './_components/AuthButton';
+import AuthContainer from './_components/AuthContainer';
+import AuthFormInput from './_components/AuthFormInput';
+import AuthHeader from './_components/AuthHeader';
+import StepView from './_components/StepView';
 
-import FormInput from '@/components/FormInput'
+const schema = z.object({
+  code: z
+    .string()
+    .min(6, 'Code must be 6 digits')
+    .max(6, 'Code must be 6 digits'),
+});
 
-// Verification validation schema
-const verifySchema = z.object({
-  code: z.string({ message: 'Verification code is required' }).min(6, 'Code must be 6 digits'),
-})
-
-type VerifyFields = z.infer<typeof verifySchema>
+type Fields = z.infer<typeof schema>;
 
 export default function VerifyScreen() {
-  const router = useRouter()
-  
-  const {
-    control,
-    handleSubmit,
-    setError,
-    formState: { errors },
-  } = useForm<VerifyFields>({
-    resolver: zodResolver(verifySchema),
-  })
+  const router = useRouter();
+  const t = useTheme();
+  const { signUp, isLoaded, setActive } = useSignUp();
+  const [loading, setLoading] = useState(false);
 
-  const { signUp, isLoaded, setActive } = useSignUp()
+  const form = useForm<Fields>({
+    resolver: zodResolver(schema),
+    defaultValues: { code: '' },
+  });
 
-  const onVerify = async (data: VerifyFields) => {
-    if (!isLoaded || !signUp) return
+  const pendingEmail =
+    signUp?.emailAddress || signUp?.unverifiedFields?.[0] || 'your email';
 
+  const submit = form.handleSubmit(async (data) => {
+    if (!isLoaded || !signUp) return;
+    setLoading(true);
     try {
-      // Use the code the user provided to attempt verification
-      const signUpAttempt = await signUp.attemptEmailAddressVerification({
+      const attempt = await signUp.attemptEmailAddressVerification({
         code: data.code,
-      })
-
-      // If verification was completed, set the session to active
-      // and redirect the user
-      if (signUpAttempt.status === 'complete') {
-        await setActive({ session: signUpAttempt.createdSessionId })
-        router.replace('/(tabs)' as any)
+      });
+      if (attempt.status === 'complete') {
+        await setActive({ session: attempt.createdSessionId });
+        router.replace('/(tabs)/today' as never);
       } else {
-        // If the status is not complete, check why. User may need to
-        // complete further steps.
-        console.error(JSON.stringify(signUpAttempt, null, 2))
-        setError('root', { message: 'Verification failed. Please try again.' })
+        form.setError('code', {
+          message: 'Verification failed. Please try again.',
+        });
       }
     } catch (err) {
-      console.error('Verification error:', JSON.stringify(err, null, 2))
-      
       if (isClerkAPIResponseError(err)) {
-        err.errors.forEach((error) => {
-          if (error.code === 'verification_failed') {
-            setError('code', {
+        err.errors.forEach((e) => {
+          if (e.code === 'verification_failed' || e.meta?.paramName === 'code') {
+            form.setError('code', {
               message: 'Invalid verification code. Please try again.',
-            })
+            });
           } else {
-            setError('root', { message: error.longMessage || error.message })
+            form.setError('root', { message: e.longMessage || e.message });
           }
-        })
+        });
       } else {
-        setError('root', { message: 'Unknown error occurred' })
+        form.setError('root', { message: 'Unknown error occurred' });
       }
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  async function resend() {
+    if (!isLoaded || !signUp) return;
+    try {
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      Alert.alert('Code sent', 'We sent a new verification code.');
+    } catch {
+      Alert.alert('Error', 'Could not resend code. Try again.');
     }
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-gray-50"
-    >
-      <View className="flex-1 justify-center px-6">
-        <View className="max-w-sm mx-auto w-full">
-          <Text className="text-3xl font-bold text-center mb-2 text-gray-900">
-            Verify Your Email
-          </Text>
-          <Text className="text-center mb-8 text-gray-600">
-            We sent a verification code to your email address
-          </Text>
+    <AuthContainer>
+      <StepView>
+        <AuthBackButton onPress={() => router.back()} />
 
-          <View className="mb-4">
-            <FormInput
-              control={control}
-              name="code"
-              placeholder="Enter verification code"
-              autoFocus
-              keyboardType="number-pad"
-              maxLength={6}
-              autoComplete="one-time-code"
-            />
-          </View>
+        <AuthHeader
+          title="Verify your email"
+          subtitle={`We sent a 6-digit code to ${pendingEmail}.`}
+          showLogo={false}
+        />
 
-          {errors.root && (
-            <Text className="text-red-500 text-sm text-center mb-4">
-              {errors.root.message}
-            </Text>
-          )}
-
-          <TouchableOpacity 
-            onPress={handleSubmit(onVerify)}
-            className="bg-black rounded-lg py-4 items-center mb-6"
-          >
-            <Text className="text-white font-semibold">
-              Verify Email
-            </Text>
-          </TouchableOpacity>
-
-          <View className="flex-row justify-center">
-            <Text className="text-gray-600 text-sm">Didn&apos;t receive a code? </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text className="text-sm font-semibold">Go back</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={{ marginBottom: 16 }}>
+          <AuthFormInput
+            control={form.control}
+            name="code"
+            placeholder="123456"
+            keyboardType="number-pad"
+            autoFocus
+            maxLength={6}
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            returnKeyType="go"
+            onSubmitEditing={submit}
+            style={{
+              letterSpacing: 6,
+              textAlign: 'center',
+              fontSize: 22,
+              fontWeight: '600',
+            }}
+          />
         </View>
-      </View>
-    </KeyboardAvoidingView>
-  )
+
+        {form.formState.errors.root?.message ? (
+          <Text
+            style={{
+              color: t.missed,
+              fontSize: 13,
+              marginBottom: 12,
+              textAlign: 'center',
+            }}
+          >
+            {form.formState.errors.root.message}
+          </Text>
+        ) : null}
+
+        <AuthButton
+          title="Verify email"
+          loading={loading}
+          disabled={loading || !isLoaded}
+          loadingText="Verifying…"
+          onPress={submit}
+        />
+
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: 12,
+            gap: 4,
+          }}
+        >
+          <Text style={{ color: t.textMuted, fontSize: 13 }}>
+            Didn&apos;t receive a code?
+          </Text>
+          <Pressable onPress={resend} disabled={loading} hitSlop={8}>
+            <Text style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>
+              Resend
+            </Text>
+          </Pressable>
+        </View>
+      </StepView>
+    </AuthContainer>
+  );
 }

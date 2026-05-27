@@ -1,122 +1,148 @@
-import React from 'react'
-import {
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native'
+import { isClerkAPIResponseError, useSignIn } from '@clerk/clerk-expo';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import { isClerkAPIResponseError, useSignIn } from '@clerk/clerk-expo'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'expo-router'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
+import { useTheme } from '@/hooks/useTheme';
+import AuthBackButton from './_components/AuthBackButton';
+import AuthButton from './_components/AuthButton';
+import AuthContainer from './_components/AuthContainer';
+import AuthFormInput from './_components/AuthFormInput';
+import AuthHeader from './_components/AuthHeader';
+import StepView from './_components/StepView';
 
-import FormInput from '@/components/FormInput'
+const schema = z.object({
+  email: z
+    .string({ message: 'Email is required' })
+    .email('Enter a valid email address'),
+});
 
-// Forgot password validation schema
-const forgotPasswordSchema = z.object({
-  email: z.string({ message: 'Email is required' }).email('Invalid email'),
-})
-
-type ForgotPasswordFields = z.infer<typeof forgotPasswordSchema>
+type Fields = z.infer<typeof schema>;
 
 export default function ForgotPasswordScreen() {
-  const router = useRouter()
-  
-  const {
-    control,
-    handleSubmit,
-    setError,
-    formState: { errors },
-  } = useForm<ForgotPasswordFields>({
-    resolver: zodResolver(forgotPasswordSchema),
-  })
+  const router = useRouter();
+  const t = useTheme();
+  const { signIn, isLoaded } = useSignIn();
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
 
-  const { signIn, isLoaded } = useSignIn()
+  const form = useForm<Fields>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: '' },
+  });
 
-  const onSendReset = async (data: ForgotPasswordFields) => {
-    if (!isLoaded || !signIn) return
-
+  const submit = form.handleSubmit(async (data) => {
+    if (!isLoaded || !signIn) return;
+    setLoading(true);
     try {
-      // Send password reset email
       await signIn.create({
         strategy: 'reset_password_email_code',
         identifier: data.email,
-      })
-
-      // Navigate to reset password screen or show success message
-      // For now, just go back to sign in
-      router.replace('/(auth)/sign-in' as any)
+      });
+      setSent(data.email);
     } catch (err) {
-      console.error('Password reset error:', JSON.stringify(err, null, 2))
-      
       if (isClerkAPIResponseError(err)) {
-        err.errors.forEach((error) => {
-          if (error.meta?.paramName === 'identifier') {
-            setError('email', {
-              message: error.longMessage || error.message,
-            })
+        err.errors.forEach((e) => {
+          if (e.meta?.paramName === 'identifier') {
+            form.setError('email', { message: e.longMessage || e.message });
           } else {
-            setError('root', { message: error.longMessage || error.message })
+            form.setError('root', { message: e.longMessage || e.message });
           }
-        })
+        });
       } else {
-        setError('root', { message: 'Failed to send reset email' })
+        Alert.alert('Error', 'Failed to send reset email');
       }
+    } finally {
+      setLoading(false);
     }
-  }
+  });
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-gray-50"
-    >
-      <View className="flex-1 justify-center px-6">
-        <View className="max-w-sm mx-auto w-full">
-          <Text className="text-3xl font-bold text-center mb-2 text-gray-900">
-            Reset Password
-          </Text>
-          <Text className="text-center mb-8 text-gray-600">
-            Enter your email to receive a password reset link
-          </Text>
+    <AuthContainer>
+      <StepView>
+        <AuthBackButton onPress={() => router.back()} />
 
-          <View className="mb-4">
-            <FormInput
-              control={control}
-              name="email"
-              placeholder="Email"
-              autoFocus
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
+        {sent ? (
+          <>
+            <AuthHeader
+              title="Check your email"
+              subtitle={`We sent a password reset link to ${sent}.`}
+              showLogo={false}
             />
-          </View>
+            <AuthButton
+              title="Back to sign in"
+              onPress={() => router.replace('/(auth)/continue' as never)}
+            />
+          </>
+        ) : (
+          <>
+            <AuthHeader
+              title="Reset your password"
+              subtitle="Enter your email and we'll send you a reset link."
+              showLogo={false}
+            />
 
-          {errors.root && (
-            <Text className="text-red-500 text-sm text-center mb-4">
-              {errors.root.message}
-            </Text>
-          )}
+            <View style={{ marginBottom: 16 }}>
+              <AuthFormInput
+                control={form.control}
+                name="email"
+                placeholder="you@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
+                autoCorrect={false}
+                autoFocus
+                returnKeyType="send"
+                onSubmitEditing={submit}
+              />
+            </View>
 
-          <TouchableOpacity 
-            onPress={handleSubmit(onSendReset)}
-            className="bg-black rounded-lg py-4 items-center mb-6"
-          >
-            <Text className="text-white font-semibold">
-              Send Reset Link
-            </Text>
-          </TouchableOpacity>
+            {form.formState.errors.root?.message ? (
+              <Text
+                style={{
+                  color: t.missed,
+                  fontSize: 13,
+                  marginBottom: 12,
+                  textAlign: 'center',
+                }}
+              >
+                {form.formState.errors.root.message}
+              </Text>
+            ) : null}
 
-          <View className="flex-row justify-center">
-            <Text className="text-gray-600 text-sm">Remember your password? </Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/sign-in' as any)}>
-              <Text className="text-sm font-semibold">Sign in</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
-  )
-} 
+            <AuthButton
+              title="Send reset link"
+              loading={loading}
+              disabled={loading || !isLoaded}
+              loadingText="Sending…"
+              onPress={submit}
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginTop: 12,
+                gap: 4,
+              }}
+            >
+              <Text style={{ color: t.textMuted, fontSize: 13 }}>
+                Remember your password?
+              </Text>
+              <Pressable onPress={() => router.back()} hitSlop={8}>
+                <Text style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>
+                  Sign in
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+      </StepView>
+    </AuthContainer>
+  );
+}

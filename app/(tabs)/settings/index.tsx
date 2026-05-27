@@ -49,36 +49,46 @@ export default function SettingsScreen() {
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        <View
-          style={{
-            marginHorizontal: 20,
-            backgroundColor: t.surface,
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: t.border,
-            padding: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 14,
-          }}
+        <Pressable
+          onPress={() => router.push('/(tabs)/settings/profile' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Open profile settings"
+          style={({ pressed }) => ({
+            opacity: pressed ? 0.7 : 1,
+          })}
         >
-          <Avatar name={displayName || email} size={48} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>
-              {displayName || 'Signed in'}
-            </Text>
-            {email ? (
-              <Text style={{ color: t.textMuted, fontSize: 14, marginTop: 2 }}>
-                {email}
+          <View
+            style={{
+              marginHorizontal: 20,
+              backgroundColor: t.surface,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: t.border,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 14,
+            }}
+          >
+            <Avatar name={displayName || email} size={48} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>
+                {displayName || 'Signed in'}
               </Text>
-            ) : null}
-            {organization?.name ? (
-              <Text style={{ color: t.textMuted, fontSize: 13, marginTop: 4 }}>
-                {organization.name}
-              </Text>
-            ) : null}
+              {email ? (
+                <Text style={{ color: t.textMuted, fontSize: 14, marginTop: 2 }}>
+                  {email}
+                </Text>
+              ) : null}
+              {organization?.name ? (
+                <Text style={{ color: t.textMuted, fontSize: 13, marginTop: 4 }}>
+                  {organization.name}
+                </Text>
+              ) : null}
+            </View>
+            <Feather name="chevron-right" size={20} color={t.iconMuted} />
           </View>
-        </View>
+        </Pressable>
 
         <SettingsSection title="Notifications">
           <SettingsToggle

@@ -1,12 +1,14 @@
-import { Stack } from 'expo-router'
+import { Stack } from 'expo-router';
 
 export default function AuthRoutesLayout() {
   return (
-    <Stack 
+    <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'none',
+        animation: 'fade',
+        animationDuration: 220,
+        contentStyle: { backgroundColor: 'transparent' },
       }}
     />
-  )
+  );
 }
