@@ -219,44 +219,62 @@ export default function ActiveCallScreen() {
           </Pressable>
         </View>
       ) : (
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 40,
-          }}
-        >
-          <ControlButton
-            icon={call.muted ? 'mic-off' : 'mic'}
-            label={call.muted ? 'Unmute' : 'Mute'}
-            active={call.muted}
-            onPress={voice.toggleMute}
-            disabled={!isLive}
-          />
-          <ControlButton
-            icon="grid"
-            label="Keypad"
-            onPress={() => setShowKeypad(true)}
-            disabled={!isLive}
-          />
-          <ControlButton
-            icon={call.onHold ? 'play' : 'pause'}
-            label={call.onHold ? 'Resume' : 'Hold'}
-            active={call.onHold}
-            onPress={voice.toggleHold}
-            disabled={!isLive}
-          />
-          <ControlButton
-            icon={call.recording ? 'stop-circle' : 'circle'}
-            label={call.recording ? 'Stop' : 'Record'}
-            active={call.recording}
-            activeColor={t.missed}
-            onPress={() => {
-              voice.toggleRecording();
+        <View style={{ gap: 18, marginBottom: 40 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
             }}
-            disabled={!isLive}
-          />
+          >
+            <ControlButton
+              icon={call.muted ? 'mic-off' : 'mic'}
+              label={call.muted ? 'Unmute' : 'Mute'}
+              active={call.muted}
+              onPress={voice.toggleMute}
+              disabled={!isLive}
+            />
+            <ControlButton
+              icon="volume-2"
+              label="Speaker"
+              active={call.speakerOn}
+              onPress={voice.toggleSpeaker}
+              disabled={!isLive}
+            />
+            <ControlButton
+              icon="grid"
+              label="Keypad"
+              onPress={() => setShowKeypad(true)}
+              disabled={!isLive}
+            />
+          </View>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+            }}
+          >
+            <ControlButton
+              icon={call.onHold ? 'play' : 'pause'}
+              label={call.onHold ? 'Resume' : 'Hold'}
+              active={call.onHold}
+              onPress={voice.toggleHold}
+              disabled={!isLive}
+            />
+            <ControlButton
+              icon={call.recording ? 'stop-circle' : 'circle'}
+              label={call.recording ? 'Stop' : 'Record'}
+              active={call.recording}
+              activeColor={t.missed}
+              onPress={() => {
+                voice.toggleRecording();
+              }}
+              disabled={!isLive}
+            />
+            {/* Spacer to keep the bottom row aligned with the top row. */}
+            <View style={{ flex: 1 }} />
+          </View>
         </View>
       )}
 

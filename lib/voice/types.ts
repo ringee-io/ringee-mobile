@@ -42,5 +42,7 @@ export interface ActiveCall {
   onHold: boolean;
   recording: boolean;
   recordingId: string | null;
+  /** Loudspeaker output toggled by the user; earpiece is the default. */
+  speakerOn: boolean;
   errorMessage?: string | null;
 }

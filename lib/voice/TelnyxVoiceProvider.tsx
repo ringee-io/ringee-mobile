@@ -16,6 +16,7 @@ import { TELNYX } from '@/constants/Config';
 import { ApiError, TelephonyApi } from '@/lib/api';
 
 import { buildCustomHeaders, isTerminal, mapSdkState, normalizeDestination } from './callState';
+import { CallAudio } from './callAudio';
 import { loadTelnyx, type TelnyxCall, type TelnyxVoipClient } from './telnyx';
 import type { ActiveCall, CallerOption } from './types';
 import { useCallerOptions } from './useCallerOptions';
@@ -49,6 +50,8 @@ interface VoiceContextValue {
   toggleMute: () => void;
   toggleHold: () => void;
   toggleRecording: () => Promise<void>;
+  /** Toggle loudspeaker output. Earpiece is the default. */
+  toggleSpeaker: () => void;
   sendDtmf: (digit: string) => void;
   errorMessage: string | null;
 }
@@ -146,6 +149,9 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
       try {
         clientRef.current?.disconnect?.();
       } catch {}
+      // Provider tear-down (logout, app unmount) — make sure audio routing
+      // is not stuck in speaker mode and the proximity sensor is released.
+      CallAudio.stop();
     };
   }, [ensureClient]);
 
@@ -179,6 +185,9 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
           stateSubRef.current?.unsubscribe();
           stateSubRef.current = null;
           callRef.current = null;
+          // Restore default audio routing the moment the call ends, regardless
+          // of whether it was answered. Proximity monitoring stops here too.
+          CallAudio.stop();
           // Give the bye/error event one tick to populate errorRef, then clear
           // the call and, if it died before being answered, surface a failure.
           setTimeout(() => {
@@ -238,6 +247,11 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
         if (TELNYX.debug) {
           console.log('[voice] placing call', { destination: e164, callerNumber: cid, customHeaders });
         }
+        // Route audio to the earpiece and enable proximity monitoring *before*
+        // the SDK attaches its audio stream so the call audio is never briefly
+        // routed through the loudspeaker on Android.
+        CallAudio.start();
+
         const call = await client.newCall(e164, undefined, cid, customHeaders);
         callRef.current = call;
 
@@ -254,6 +268,7 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
           onHold: false,
           recording: false,
           recordingId: null,
+          speakerOn: false,
         };
 
         pendingNavigateRef.current = navigate;
@@ -270,6 +285,8 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
           Alert.alert('Call failed', message);
         });
       } catch (err) {
+        // newCall threw before the call ever started — undo the audio routing.
+        CallAudio.stop();
         const msg = err instanceof Error ? err.message : String(err);
         setErrorMessage(msg);
         Alert.alert('Call failed', msg);
@@ -357,6 +374,15 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const toggleSpeaker = useCallback(() => {
+    setActiveCall((prev) => {
+      if (!prev) return prev;
+      const next = !prev.speakerOn;
+      CallAudio.setSpeaker(next);
+      return { ...prev, speakerOn: next };
+    });
+  }, []);
+
   const sendDtmf = useCallback((digit: string) => {
     try {
       (callRef.current?.sendDTMF ?? callRef.current?.dtmf)?.(digit);
@@ -415,6 +441,7 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
       toggleMute,
       toggleHold,
       toggleRecording,
+      toggleSpeaker,
       sendDtmf,
       errorMessage,
     }),
@@ -434,6 +461,7 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
       toggleMute,
       toggleHold,
       toggleRecording,
+      toggleSpeaker,
       sendDtmf,
       errorMessage,
     ],
