@@ -1,10 +1,13 @@
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, Keypad } from '@/components/ringee';
+
+const LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 import { useTheme } from '@/hooks/useTheme';
 import { ContactsApi, type ContactSummary } from '@/lib/api';
 import {
@@ -159,14 +162,40 @@ export default function KeypadSheetScreen() {
             width: 72,
             height: 72,
             borderRadius: 36,
-            backgroundColor: t.call,
-            alignItems: 'center',
-            justifyContent: 'center',
             opacity: !canCall ? 0.4 : pressed ? 0.85 : 1,
-            boxShadow: canCall ? '0 8px 20px rgba(16, 185, 129, 0.4)' : 'none',
           })}
         >
-          <Feather name="phone" size={28} color="#fff" />
+          {LIQUID_GLASS ? (
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={t.call}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <Feather name="phone" size={28} color="#fff" />
+            </GlassView>
+          ) : (
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: t.call,
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: canCall ? '0 8px 20px rgba(16, 185, 129, 0.4)' : 'none',
+              }}
+            >
+              <Feather name="phone" size={28} color="#fff" />
+            </View>
+          )}
         </Pressable>
         <Pressable
           onPress={backspace}

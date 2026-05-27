@@ -1,5 +1,4 @@
 import { Stack } from 'expo-router';
-import { Platform } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
 
@@ -10,9 +9,7 @@ export default function TodayStackLayout() {
       screenOptions={{
         headerLargeTitle: true,
         headerLargeTitleShadowVisible: false,
-        headerTransparent: Platform.OS === 'ios',
-        headerBlurEffect: 'systemChromeMaterial',
-        headerStyle: { backgroundColor: t.background },
+        headerShadowVisible: false,
         headerTintColor: t.text,
         headerTitleStyle: { color: t.text },
         headerLargeTitleStyle: { color: t.text, fontWeight: '700' },

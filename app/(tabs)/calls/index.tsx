@@ -1,5 +1,5 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -107,103 +107,103 @@ export default function CallsScreen() {
     </View>
   );
 
-  return (
-    <View style={{ flex: 1, backgroundColor: t.background }}>
-      <Stack.Screen options={{ title: 'Calls' }} />
+  const showLoading = calls.loading && calls.items.length === 0;
+  const showError = !!calls.error && calls.items.length === 0;
 
-      {calls.loading && calls.items.length === 0 ? (
-        <LoadingState />
-      ) : calls.error && calls.items.length === 0 ? (
-        <ErrorState message={calls.error} onRetry={calls.reload} />
-      ) : (
-        <FlatList<Call>
-          data={calls.items}
-          keyExtractor={(c) => c.id}
-          ListHeaderComponent={header}
-          ItemSeparatorComponent={RowSeparator}
-          renderItem={({ item }) => {
-            const name =
-              item.contactName ||
+  return (
+    <FlatList<Call>
+      data={calls.items}
+      keyExtractor={(c) => c.id}
+      ListHeaderComponent={header}
+      ItemSeparatorComponent={RowSeparator}
+      renderItem={({ item }) => {
+        const name =
+          item.contactName ||
+          item.phoneNumber ||
+          (['outgoing', 'outbound'].includes(item.direction || '') ? item.fromNumber : item.toNumber);
+        const inbound = item.direction === 'inbound';
+        const isMissed =
+          item.missed === true ||
+          (inbound && !item.answeredAt && item.status !== 'answered');
+        return (
+          <ActionRow
+            avatarName={item.contactName}
+            avatarFallback={item.phoneNumber || item.fromNumber}
+            title={name || 'Unknown'}
+            subtitle={
+              item.contactCompany ||
               item.phoneNumber ||
-              (['outgoing', 'outbound'].includes(item.direction || '') ? item.fromNumber : item.toNumber);
-            const inbound = item.direction === 'inbound';
-            const isMissed =
-              item.missed === true ||
-              (inbound && !item.answeredAt && item.status !== 'answered');
-            return (
-              <ActionRow
-                avatarName={item.contactName}
-                avatarFallback={item.phoneNumber || item.fromNumber}
-                title={name || 'Unknown'}
-                subtitle={
-                  item.contactCompany ||
+              (inbound ? item.fromNumber : item.toNumber)
+            }
+            meta={formatRelativeFromNow(item.startedAt)}
+            status={
+              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                <Feather
+                  name={
+                    isMissed
+                      ? 'phone-missed'
+                      : inbound
+                        ? 'phone-incoming'
+                        : 'phone-outgoing'
+                  }
+                  size={12}
+                  color={isMissed ? t.missed : t.textMuted}
+                />
+                {item.outcome ? (
+                  <StatusPill label={prettyOutcome(item.outcome)} />
+                ) : null}
+                {item.hasRecording ? (
+                  <StatusPill label="Rec" tone="info" />
+                ) : null}
+                {item.durationSeconds ? (
+                  <Text style={{ color: t.textMuted, fontSize: 12 }}>
+                    {formatDuration(item.durationSeconds)}
+                  </Text>
+                ) : null}
+              </View>
+            }
+            trailing={
+              <CallButton
+                phoneNumber={
                   item.phoneNumber ||
                   (inbound ? item.fromNumber : item.toNumber)
                 }
-                meta={formatRelativeFromNow(item.startedAt)}
-                status={
-                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                    <Feather
-                      name={
-                        isMissed
-                          ? 'phone-missed'
-                          : inbound
-                            ? 'phone-incoming'
-                            : 'phone-outgoing'
-                      }
-                      size={12}
-                      color={isMissed ? t.missed : t.textMuted}
-                    />
-                    {item.outcome ? (
-                      <StatusPill label={prettyOutcome(item.outcome)} />
-                    ) : null}
-                    {item.hasRecording ? (
-                      <StatusPill label="Rec" tone="info" />
-                    ) : null}
-                    {item.durationSeconds ? (
-                      <Text style={{ color: t.textMuted, fontSize: 12 }}>
-                        {formatDuration(item.durationSeconds)}
-                      </Text>
-                    ) : null}
-                  </View>
-                }
-                trailing={
-                  <CallButton
-                    phoneNumber={
-                      item.phoneNumber ||
-                      (inbound ? item.fromNumber : item.toNumber)
-                    }
-                    variant="inline"
-                  />
-                }
-                onPress={() => router.push(`/call/${item.id}` as never)}
+                variant="inline"
               />
-            );
-          }}
-          ListEmptyComponent={
-            <EmptyState
-              icon="phone"
-              title="No calls yet"
-              message="When you make or receive a call, it'll show up here."
-            />
-          }
-          ListFooterComponent={
-            calls.loadingMore ? <LoadingState inline /> : null
-          }
-          onEndReached={calls.loadMore}
-          onEndReachedThreshold={0.4}
-          refreshControl={
-            <RefreshControl
-              refreshing={calls.refreshing}
-              onRefresh={calls.refresh}
-              tintColor={t.text}
-            />
-          }
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-          contentInsetAdjustmentBehavior="automatic"
+            }
+            onPress={() => router.push(`/call/${item.id}` as never)}
+          />
+        );
+      }}
+      ListEmptyComponent={
+        showLoading ? (
+          <LoadingState />
+        ) : showError ? (
+          <ErrorState message={calls.error!} onRetry={calls.reload} />
+        ) : (
+          <EmptyState
+            icon="phone"
+            title="No calls yet"
+            message="When you make or receive a call, it'll show up here."
+          />
+        )
+      }
+      ListFooterComponent={
+        calls.loadingMore ? <LoadingState inline /> : null
+      }
+      onEndReached={calls.loadMore}
+      onEndReachedThreshold={0.4}
+      refreshControl={
+        <RefreshControl
+          refreshing={calls.refreshing}
+          onRefresh={calls.refresh}
+          tintColor={t.text}
         />
-      )}
-    </View>
+      }
+      style={{ flex: 1, backgroundColor: t.background }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      contentInsetAdjustmentBehavior="automatic"
+    />
   );
 }
 

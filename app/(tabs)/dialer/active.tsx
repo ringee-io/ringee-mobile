@@ -1,9 +1,12 @@
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Keypad } from '@/components/ringee';
+
+const LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 import { useTheme } from '@/hooks/useTheme';
 import { detectCountry, flagEmoji, parseNumber } from '@/lib/phone';
 import { useVoice } from '@/lib/voice';
@@ -290,23 +293,54 @@ export default function ActiveCallScreen() {
             width: 76,
             height: 76,
             borderRadius: 38,
-            backgroundColor: t.missed,
-            alignItems: 'center',
-            justifyContent: 'center',
             opacity: pressed ? 0.85 : 1,
-            shadowColor: '#000',
-            shadowOpacity: 0.18,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 6 },
-            elevation: 6,
           })}
         >
-          <Feather
-            name="phone-off"
-            size={28}
-            color="#fff"
-            style={Platform.OS === 'ios' ? { transform: [{ rotate: '135deg' }] } : undefined}
-          />
+          {LIQUID_GLASS ? (
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={t.missed}
+              style={{
+                width: 76,
+                height: 76,
+                borderRadius: 38,
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <Feather
+                name="phone-off"
+                size={28}
+                color="#fff"
+                style={Platform.OS === 'ios' ? { transform: [{ rotate: '135deg' }] } : undefined}
+              />
+            </GlassView>
+          ) : (
+            <View
+              style={{
+                width: 76,
+                height: 76,
+                borderRadius: 38,
+                backgroundColor: t.missed,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOpacity: 0.18,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 6 },
+                elevation: 6,
+              }}
+            >
+              <Feather
+                name="phone-off"
+                size={28}
+                color="#fff"
+                style={Platform.OS === 'ios' ? { transform: [{ rotate: '135deg' }] } : undefined}
+              />
+            </View>
+          )}
         </Pressable>
       </View>
     </View>

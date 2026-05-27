@@ -10,9 +10,10 @@ export default function DialerStackLayout() {
       screenOptions={{
         headerLargeTitle: true,
         headerLargeTitleShadowVisible: false,
+        headerShadowVisible: false,
         headerTransparent: Platform.OS === 'ios',
         headerBlurEffect: 'systemChromeMaterial',
-        headerStyle: { backgroundColor: t.background },
+        headerLargeStyle: { backgroundColor: t.background },
         headerTintColor: t.text,
         headerTitleStyle: { color: t.text },
         headerLargeTitleStyle: { color: t.text, fontWeight: '700' },

@@ -1,6 +1,6 @@
 import { useUser } from '@clerk/clerk-expo';
 import * as Haptics from 'expo-haptics';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
@@ -214,78 +214,77 @@ export default function TodayScreen() {
     [router],
   );
 
-  return (
-    <View style={{ flex: 1, backgroundColor: t.background }}>
-      <Stack.Screen options={{ title: 'Today' }} />
+  const showLoading = today.loading && !today.data;
+  const showError = !!today.error && !today.data;
 
-      {today.loading && !today.data ? (
-        <LoadingState />
-      ) : today.error && !today.data ? (
-        <ErrorState message={today.error} onRetry={today.reload} />
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item, idx) =>
-            `${item.kind}-${(item as { item: { id: string } }).item.id}-${idx}`
-          }
-          renderItem={renderItem}
-          renderSectionHeader={({ section }) => (
-            <SectionHeader title={section.title} count={section.count} />
-          )}
-          ItemSeparatorComponent={RowSeparator}
-          stickySectionHeadersEnabled={false}
-          contentInsetAdjustmentBehavior="automatic"
-          ListHeaderComponent={
-            today.data ? (
-              <View style={{ marginTop: 4 }}>
-                <Text
-                  style={{
-                    color: t.textMuted,
-                    fontSize: 14,
-                    paddingHorizontal: 20,
-                    paddingBottom: 12,
-                  }}
-                >
-                  {subtitle}
-                </Text>
-                <SummaryCard
-                  items={[
-                    {
-                      label: 'Callbacks',
-                      value: today.data.summary.callbacks,
-                    },
-                    {
-                      label: 'Meetings',
-                      value: today.data.summary.meetings,
-                    },
-                    {
-                      label: 'Missed',
-                      value: today.data.summary.missedCalls,
-                      tint: today.data.summary.missedCalls > 0 ? t.missed : undefined,
-                    },
-                  ]}
-                />
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon="check-circle"
-              title="You're clear for today"
-              message="No callbacks, meetings, or missed calls need your attention."
-            />
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={today.refreshing}
-              onRefresh={today.refresh}
-              tintColor={t.text}
-            />
-          }
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-          style={{ backgroundColor: t.background }}
-        />
+  return (
+    <SectionList
+      sections={sections}
+      keyExtractor={(item, idx) =>
+        `${item.kind}-${(item as { item: { id: string } }).item.id}-${idx}`
+      }
+      renderItem={renderItem}
+      renderSectionHeader={({ section }) => (
+        <SectionHeader title={section.title} count={section.count} />
       )}
-    </View>
+      ItemSeparatorComponent={RowSeparator}
+      stickySectionHeadersEnabled={false}
+      contentInsetAdjustmentBehavior="automatic"
+      ListHeaderComponent={
+        today.data ? (
+          <View style={{ marginTop: 4 }}>
+            <Text
+              style={{
+                color: t.textMuted,
+                fontSize: 14,
+                paddingHorizontal: 20,
+                paddingBottom: 12,
+              }}
+            >
+              {subtitle}
+            </Text>
+            <SummaryCard
+              items={[
+                {
+                  label: 'Callbacks',
+                  value: today.data.summary.callbacks,
+                },
+                {
+                  label: 'Meetings',
+                  value: today.data.summary.meetings,
+                },
+                {
+                  label: 'Missed',
+                  value: today.data.summary.missedCalls,
+                  tint: today.data.summary.missedCalls > 0 ? t.missed : undefined,
+                },
+              ]}
+            />
+          </View>
+        ) : null
+      }
+      ListEmptyComponent={
+        showLoading ? (
+          <LoadingState />
+        ) : showError ? (
+          <ErrorState message={today.error!} onRetry={today.reload} />
+        ) : (
+          <EmptyState
+            icon="check-circle"
+            title="You're clear for today"
+            message="No callbacks, meetings, or missed calls need your attention."
+          />
+        )
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={today.refreshing}
+          onRefresh={today.refresh}
+          tintColor={t.text}
+        />
+      }
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      style={{ flex: 1, backgroundColor: t.background }}
+    />
   );
 }

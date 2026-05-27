@@ -1,6 +1,7 @@
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -17,6 +18,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ringee';
+
+const LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 import { useTheme } from '@/hooks/useTheme';
 import {
   CallbacksApi,
@@ -380,36 +383,69 @@ export default function ScheduleSheetScreen() {
         <Pressable
           disabled={!canSubmit}
           onPress={submit}
+          accessibilityRole="button"
+          accessibilityLabel={isMeeting ? 'Schedule meeting' : 'Schedule callback'}
           style={({ pressed }) => ({
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            paddingVertical: 16,
             borderRadius: 16,
-            borderCurve: 'continuous',
-            backgroundColor: t.icon,
             opacity: !canSubmit ? 0.4 : pressed ? 0.85 : 1,
           })}
         >
-          {submitting ? (
-            <ActivityIndicator color={t.icon} size="small" />
+          {LIQUID_GLASS ? (
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={t.call}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingVertical: 16,
+                borderRadius: 16,
+                borderCurve: 'continuous',
+                overflow: 'hidden',
+              }}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Feather
+                  name={isMeeting ? 'calendar' : 'phone-call'}
+                  size={16}
+                  color="#fff"
+                />
+              )}
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+                {isMeeting ? 'Schedule meeting' : 'Schedule callback'}
+              </Text>
+            </GlassView>
           ) : (
-            <Feather
-              name={isMeeting ? 'calendar' : 'phone-call'}
-              size={16}
-              color={t.icon}
-            />
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingVertical: 16,
+                borderRadius: 16,
+                borderCurve: 'continuous',
+                backgroundColor: t.call,
+              }}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Feather
+                  name={isMeeting ? 'calendar' : 'phone-call'}
+                  size={16}
+                  color="#fff"
+                />
+              )}
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+                {isMeeting ? 'Schedule meeting' : 'Schedule callback'}
+              </Text>
+            </View>
           )}
-          <Text
-            style={{
-              color: t.icon,
-              fontSize: 16,
-              fontWeight: '700',
-            }}
-          >
-            {isMeeting ? 'Schedule meeting' : 'Schedule callback'}
-          </Text>
         </Pressable>
       </ScrollView>
     </>

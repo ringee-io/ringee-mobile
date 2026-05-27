@@ -29,6 +29,11 @@ type InCallManager = {
 };
 
 let mod: InCallManager | null | undefined;
+// Tracks whether `start()` actually ran end-to-end. We use this to skip a
+// no-op `stop()` (which would log noisy warnings on platforms where the
+// native module isn't linked, e.g. dev builds without the InCallManager
+// pod installed yet).
+let started = false;
 
 function load(): InCallManager | null {
   if (mod !== undefined) return mod;
@@ -37,7 +42,11 @@ function load(): InCallManager | null {
     // native module — same lazy-load pattern as ./telnyx.ts.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const required = require('react-native-incall-manager');
-    mod = (required?.default ?? required) as InCallManager;
+    const candidate = (required?.default ?? required) as InCallManager | null;
+    // The package can resolve to a stub whose method properties are null
+    // when the native module isn't linked. Treat that as "unavailable".
+    mod =
+      candidate && typeof candidate.start === 'function' ? candidate : null;
   } catch (err) {
     console.warn('[callAudio] react-native-incall-manager not available', err);
     mod = null;
@@ -49,6 +58,16 @@ function isNative(): boolean {
   return Platform.OS === 'ios' || Platform.OS === 'android';
 }
 
+function safe(fn: () => void): void {
+  try {
+    fn();
+  } catch {
+    // Individual native-module calls can throw when the underlying bridge
+    // hasn't been wired up; we deliberately swallow per-call errors so a
+    // single missing method doesn't abort the rest of the routing setup.
+  }
+}
+
 export const CallAudio = {
   /**
    * Begin call audio routing. Sets the earpiece as the default output and
@@ -58,19 +77,13 @@ export const CallAudio = {
     if (!isNative()) return;
     const im = load();
     if (!im) return;
-    try {
-      // `auto: true` lets the OS keep an already-selected route
-      // (Bluetooth / wired headset) instead of forcing earpiece.
-      im.start({ media: 'audio', auto: true });
-      // Default to earpiece. setForceSpeakerphoneOn(false) means "do not
-      // force speaker"; the OS picks earpiece unless an external device
-      // is plugged in.
-      im.setForceSpeakerphoneOn(false);
-      im.setSpeakerphoneOn(false);
-      im.setKeepScreenOn(true);
-    } catch (err) {
-      console.warn('[callAudio] start failed', err);
-    }
+    // `auto: true` lets the OS keep an already-selected route
+    // (Bluetooth / wired headset) instead of forcing earpiece.
+    safe(() => im.start({ media: 'audio', auto: true }));
+    safe(() => im.setForceSpeakerphoneOn(false));
+    safe(() => im.setSpeakerphoneOn(false));
+    safe(() => im.setKeepScreenOn(true));
+    started = true;
   },
 
   /**
@@ -81,14 +94,10 @@ export const CallAudio = {
     if (!isNative()) return;
     const im = load();
     if (!im) return;
-    try {
-      im.setSpeakerphoneOn(on);
-      // -1 = "don't force" (let the OS decide based on external devices);
-      // true = force speaker on; false = force off.
-      im.setForceSpeakerphoneOn(on ? true : -1);
-    } catch (err) {
-      console.warn('[callAudio] setSpeaker failed', err);
-    }
+    safe(() => im.setSpeakerphoneOn(on));
+    // -1 = "don't force" (let the OS decide based on external devices);
+    // true = force speaker on; false = force off.
+    safe(() => im.setForceSpeakerphoneOn(on ? true : -1));
   },
 
   /**
@@ -96,14 +105,12 @@ export const CallAudio = {
    */
   stop(): void {
     if (!isNative()) return;
+    if (!started) return;
+    started = false;
     const im = load();
     if (!im) return;
-    try {
-      im.setKeepScreenOn(false);
-      im.setForceSpeakerphoneOn(-1);
-      im.stop();
-    } catch (err) {
-      console.warn('[callAudio] stop failed', err);
-    }
+    safe(() => im.setKeepScreenOn(false));
+    safe(() => im.setForceSpeakerphoneOn(-1));
+    safe(() => im.stop());
   },
 };

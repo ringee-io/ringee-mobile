@@ -1,3 +1,4 @@
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -27,6 +28,8 @@ import {
 } from '@/lib/phone';
 import { useVoice } from '@/lib/voice';
 import { Feather } from '@expo/vector-icons';
+
+const LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 export default function DialerScreen() {
   const t = useTheme();
@@ -298,14 +301,40 @@ export default function DialerScreen() {
             width: 68,
             height: 68,
             borderRadius: 34,
-            backgroundColor: t.call,
-            alignItems: 'center',
-            justifyContent: 'center',
             opacity: !canCall ? 0.4 : pressed ? 0.85 : 1,
-            boxShadow: canCall ? '0 6px 16px rgba(16, 185, 129, 0.4)' : 'none',
           })}
         >
-          <Feather name="phone" size={26} color="#fff" />
+          {LIQUID_GLASS ? (
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={t.call}
+              style={{
+                width: 68,
+                height: 68,
+                borderRadius: 34,
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <Feather name="phone" size={26} color="#fff" />
+            </GlassView>
+          ) : (
+            <View
+              style={{
+                width: 68,
+                height: 68,
+                borderRadius: 34,
+                backgroundColor: t.call,
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: canCall ? '0 6px 16px rgba(16, 185, 129, 0.4)' : 'none',
+              }}
+            >
+              <Feather name="phone" size={26} color="#fff" />
+            </View>
+          )}
         </Pressable>
         <Pressable
           onPress={backspace}

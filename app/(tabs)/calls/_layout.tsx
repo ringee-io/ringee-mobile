@@ -1,20 +1,16 @@
 import { Stack } from 'expo-router';
-import { Platform } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
 
 export default function CallsStackLayout() {
   const t = useTheme();
-  const isIOS = Platform.OS === 'ios';
 
   return (
     <Stack
       screenOptions={{
         headerLargeTitle: true,
         headerLargeTitleShadowVisible: false,
-        headerTransparent: isIOS,
-        headerBlurEffect: 'systemChromeMaterial',
-        headerStyle: { backgroundColor: t.background },
+        headerShadowVisible: false,
         headerTintColor: t.text,
         headerTitleStyle: { color: t.text },
         headerLargeTitleStyle: { color: t.text, fontWeight: '700' },
