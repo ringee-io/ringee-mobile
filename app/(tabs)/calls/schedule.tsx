@@ -2,6 +2,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,7 +14,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
 import {
   CallbacksApi,
@@ -22,41 +25,26 @@ import {
   type ContactSummary,
 } from '@/lib/api';
 import { prettyE164 } from '@/lib/phone';
+import { emitRefresh } from '@/lib/refreshBus';
 import { Feather } from '@expo/vector-icons';
-
-import { Avatar } from './Avatar';
-import { BottomSheet } from './BottomSheet';
 
 type Mode = 'meeting' | 'callback';
 
-interface Props {
-  visible: boolean;
-  onClose: () => void;
-  mode: Mode;
-  /** Fires after successful creation; the parent can refresh recent lists. */
-  onCreated?: () => void;
-  /** Optional pre-selected contact so we can skip the picker step. */
-  initialContact?: ContactSummary;
-}
-
-/** Next sensible default: top of the next hour. */
 function nextHour(): Date {
   const d = new Date();
   d.setHours(d.getHours() + 1, 0, 0, 0);
   return d;
 }
 
-export function ScheduleSheet({
-  visible,
-  onClose,
-  mode,
-  onCreated,
-  initialContact,
-}: Props) {
+export default function ScheduleSheetScreen() {
   const t = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ mode?: Mode }>();
+  const mode: Mode = params.mode === 'callback' ? 'callback' : 'meeting';
   const isMeeting = mode === 'meeting';
 
-  const [contact, setContact] = useState<ContactSummary | null>(initialContact ?? null);
+  const [contact, setContact] = useState<ContactSummary | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ContactSummary[]>([]);
   const [searching, setSearching] = useState(false);
@@ -67,20 +55,9 @@ export function ScheduleSheet({
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (visible) {
-      setContact(initialContact ?? null);
-      setQuery('');
-      setResults([]);
-      setWhen(nextHour());
-      setNotes('');
-    }
-  }, [visible, initialContact]);
-
-  // Debounced contact search.
   const reqId = useRef(0);
   useEffect(() => {
-    if (!visible || contact) return;
+    if (contact) return;
     const q = query.trim();
     if (q.length < 2) {
       setResults([]);
@@ -102,7 +79,7 @@ export function ScheduleSheet({
       }
     }, 250);
     return () => clearTimeout(id);
-  }, [query, contact, visible]);
+  }, [query, contact]);
 
   function onAndroidChange(event: DateTimePickerEvent, selected?: Date) {
     setAndroidField(null);
@@ -142,8 +119,8 @@ export function ScheduleSheet({
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      onCreated?.();
-      onClose();
+      emitRefresh('calls');
+      router.back();
     } catch (err) {
       Alert.alert(
         isMeeting ? 'Could not schedule meeting' : 'Could not schedule callback',
@@ -158,19 +135,35 @@ export function ScheduleSheet({
   const canSubmit = !!contact && !submitting;
 
   return (
-    <BottomSheet
-      visible={visible}
-      onClose={onClose}
-      title={isMeeting ? 'New meeting' : 'New callback'}
-      maxHeight="92%"
-    >
+    <>
+      <Stack.Screen
+        style={{ flex: 1, backgroundColor: t.background }}
+        options={{
+          title: isMeeting ? 'New meeting' : 'New callback',
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
+              <Feather name='x' style={{ color: t.text, fontSize: 28, fontWeight: '900' }} />
+            </Pressable>
+          ),
+        }}
+      />
+      
       <ScrollView
+        style={{ flex: 1, backgroundColor: t.background }}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: insets.bottom + 24,
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        bounces={false}
-        contentContainerStyle={{ paddingBottom: 12 }}
+        contentInsetAdjustmentBehavior="automatic"
       >
-        {/* Contact */}
         <SectionLabel>Contact</SectionLabel>
         {contact ? (
           <View
@@ -185,7 +178,7 @@ export function ScheduleSheet({
               backgroundColor: t.surface,
               borderWidth: 1,
               borderColor: t.border,
-              marginBottom: 22,
+              marginBottom: 24,
             }}
           >
             <Avatar name={contact.name} fallback={contact.phoneNumber} size={40} />
@@ -213,7 +206,7 @@ export function ScheduleSheet({
             </Pressable>
           </View>
         ) : (
-          <View style={{ marginBottom: 22 }}>
+          <View style={{ marginBottom: 24 }}>
             <View
               style={{
                 flexDirection: 'row',
@@ -271,7 +264,7 @@ export function ScheduleSheet({
                       alignItems: 'center',
                       gap: 12,
                       paddingHorizontal: 14,
-                      paddingVertical: 10,
+                      paddingVertical: 12,
                       borderTopWidth: i === 0 ? 0 : 1,
                       borderTopColor: t.border,
                       opacity: pressed ? 0.6 : 1,
@@ -299,10 +292,9 @@ export function ScheduleSheet({
           </View>
         )}
 
-        {/* Date & Time */}
         <SectionLabel>{isMeeting ? 'Meeting time' : 'When to call back'}</SectionLabel>
         {isIOS ? (
-          <View style={{ gap: 10, marginBottom: 22 }}>
+          <View style={{ gap: 10, marginBottom: 24 }}>
             <Row icon="calendar" label="Date">
               <DateTimePicker
                 value={when}
@@ -325,7 +317,7 @@ export function ScheduleSheet({
             </Row>
           </View>
         ) : (
-          <View style={{ gap: 10, marginBottom: 22 }}>
+          <View style={{ gap: 10, marginBottom: 24 }}>
             <AndroidField
               icon="calendar"
               label="Date"
@@ -359,7 +351,6 @@ export function ScheduleSheet({
           </View>
         )}
 
-        {/* Notes */}
         <SectionLabel>{isMeeting ? 'Notes' : 'Note'}</SectionLabel>
         <TextInput
           value={notes}
@@ -370,7 +361,7 @@ export function ScheduleSheet({
           placeholderTextColor={t.textMuted}
           multiline
           style={{
-            minHeight: 80,
+            minHeight: 88,
             paddingHorizontal: 14,
             paddingVertical: 12,
             borderRadius: 14,
@@ -382,7 +373,7 @@ export function ScheduleSheet({
             fontSize: 15,
             lineHeight: 22,
             textAlignVertical: 'top',
-            marginBottom: 22,
+            marginBottom: 24,
           }}
         />
 
@@ -397,22 +388,22 @@ export function ScheduleSheet({
             paddingVertical: 16,
             borderRadius: 16,
             borderCurve: 'continuous',
-            backgroundColor: t.primary,
+            backgroundColor: t.icon,
             opacity: !canSubmit ? 0.4 : pressed ? 0.85 : 1,
           })}
         >
           {submitting ? (
-            <ActivityIndicator color={t.primaryForeground} size="small" />
+            <ActivityIndicator color={t.icon} size="small" />
           ) : (
             <Feather
               name={isMeeting ? 'calendar' : 'phone-call'}
               size={16}
-              color={t.primaryForeground}
+              color={t.icon}
             />
           )}
           <Text
             style={{
-              color: t.primaryForeground,
+              color: t.icon,
               fontSize: 16,
               fontWeight: '700',
             }}
@@ -421,7 +412,7 @@ export function ScheduleSheet({
           </Text>
         </Pressable>
       </ScrollView>
-    </BottomSheet>
+    </>
   );
 }
 

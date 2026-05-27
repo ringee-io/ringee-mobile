@@ -1,6 +1,7 @@
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -8,31 +9,28 @@ import {
   CallButton,
   EmptyState,
   ErrorState,
-  KeypadSheet,
   LoadingState,
   RowSeparator,
-  ScheduleSheet,
   StatusPill,
 } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
 import { CallsApi } from '@/lib/api';
 import type { Call } from '@/lib/api';
-import { useInfiniteList } from '@/lib/hooks/useInfiniteList';
 import { formatDuration, formatRelativeFromNow } from '@/lib/format';
+import { useInfiniteList } from '@/lib/hooks/useInfiniteList';
+import { useRefreshSignal } from '@/lib/refreshBus';
 import { Feather } from '@expo/vector-icons';
 
 type Filter = 'all' | 'missed';
 
 const PAGE_SIZE = 30;
+const LIQUID_GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 export default function CallsScreen() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>('all');
-
-  const [keypadOpen, setKeypadOpen] = useState(false);
-  const [scheduleMode, setScheduleMode] = useState<'meeting' | 'callback' | null>(null);
 
   const fetcher = useCallback(
     ({ page, limit }: { page: number; limit: number }) =>
@@ -49,33 +47,34 @@ export default function CallsScreen() {
     getId: (c) => c.id,
   });
 
+  useRefreshSignal('calls', calls.refresh);
+
   const header = (
     <View style={{ backgroundColor: t.background }}>
-      {/* Quick actions — WhatsApp-style circle row */}
       <View
         style={{
+          justifyContent: 'space-between',
           flexDirection: 'row',
-          justifyContent: 'space-around',
-          paddingHorizontal: 20,
-          paddingTop: 8,
-          paddingBottom: 18,
-          gap: 22,
+          paddingHorizontal: 24,
+          paddingTop: 12,
+          paddingBottom: 24,
+          // gap: 24,
         }}
       >
         <QuickAction
           icon="calendar"
           label="Schedule"
-          onPress={() => setScheduleMode('meeting')}
+          onPress={() => router.push('/(tabs)/calls/schedule?mode=meeting' as never)}
         />
         <QuickAction
           icon="phone-call"
           label="Callback"
-          onPress={() => setScheduleMode('callback')}
+          onPress={() => router.push('/(tabs)/calls/schedule?mode=callback' as never)}
         />
         <QuickAction
-          icon="grid"
-          label="Keypad"
-          onPress={() => setKeypadOpen(true)}
+          icon="smartphone"
+          label="Key Pad"
+          onPress={() => router.push('/(tabs)/calls/keypad' as never)}
         />
         <QuickAction
           icon="users"
@@ -84,11 +83,10 @@ export default function CallsScreen() {
         />
       </View>
 
-      {/* Recent header + filter pills */}
       <View
         style={{
           paddingHorizontal: 20,
-          paddingBottom: 8,
+          paddingBottom: 12,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -97,45 +95,14 @@ export default function CallsScreen() {
         <Text
           style={{
             color: t.text,
-            fontSize: 20,
+            fontSize: 22,
             fontWeight: '700',
-            letterSpacing: -0.3,
+            letterSpacing: -0.4,
           }}
         >
           Recent
         </Text>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          {[
-            { id: 'all' as Filter, label: 'All' },
-            { id: 'missed' as Filter, label: 'Missed' },
-          ].map((opt) => {
-            const active = filter === opt.id;
-            return (
-              <Pressable key={opt.id} onPress={() => setFilter(opt.id)}>
-                <View
-                  style={{
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: active ? t.text : t.border,
-                    backgroundColor: active ? t.text : 'transparent',
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: active ? t.primaryForeground : t.text,
-                      fontWeight: '600',
-                      fontSize: 12,
-                    }}
-                  >
-                    {opt.label}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+        <FilterSegment value={filter} onChange={setFilter} />
       </View>
     </View>
   );
@@ -236,14 +203,6 @@ export default function CallsScreen() {
           contentInsetAdjustmentBehavior="automatic"
         />
       )}
-
-      <KeypadSheet visible={keypadOpen} onClose={() => setKeypadOpen(false)} />
-      <ScheduleSheet
-        visible={scheduleMode !== null}
-        onClose={() => setScheduleMode(null)}
-        mode={scheduleMode ?? 'meeting'}
-        onCreated={() => calls.refresh()}
-      />
     </View>
   );
 }
@@ -254,12 +213,15 @@ interface QuickActionProps {
   onPress: () => void;
 }
 
-/**
- * A round icon button with a label below — the WhatsApp Calls header pattern,
- * but tuned for Ringee's monochrome theme.
- */
 function QuickAction({ icon, label, onPress }: QuickActionProps) {
   const t = useTheme();
+
+  const circle = { width: 56, height: 56, borderRadius: 28 } as const;
+  const center = {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  };
+
   return (
     <Pressable
       onPress={onPress}
@@ -268,35 +230,99 @@ function QuickAction({ icon, label, onPress }: QuickActionProps) {
       style={({ pressed }) => ({
         flex: 1,
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: t.surface,
-          borderWidth: 1,
-          borderColor: t.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Feather name={icon} size={22} color={t.text} />
-      </View>
+      {LIQUID_GLASS ? (
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          style={[circle, center, { overflow: 'hidden' }]}
+        >
+          <Feather name={icon} size={22} color={t.text} />
+        </GlassView>
+      ) : (
+        <View
+          style={[
+            circle,
+            center,
+            {
+              backgroundColor: t.surface,
+              borderWidth: 1,
+              borderColor: t.border,
+            },
+          ]}
+        >
+          <Feather name={icon} size={22} color={t.text} />
+        </View>
+      )}
       <Text
         numberOfLines={1}
         style={{
           color: t.text,
           fontSize: 12,
           fontWeight: '500',
+          marginTop: 4,
         }}
       >
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+interface FilterSegmentProps {
+  value: Filter;
+  onChange: (next: Filter) => void;
+}
+
+function FilterSegment({ value, onChange }: FilterSegmentProps) {
+  const t = useTheme();
+  const options: { id: Filter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'missed', label: 'Missed' },
+  ];
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: t.surface,
+        borderRadius: 999,
+        padding: 2,
+        gap: 2,
+      }}
+    >
+      {options.map((opt) => {
+        const active = value === opt.id;
+        return (
+          <Pressable
+            key={opt.id}
+            onPress={() => onChange(opt.id)}
+            accessibilityRole="button"
+            accessibilityLabel={opt.label}
+            style={({ pressed }) => ({
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              borderRadius: 999,
+              backgroundColor: active ? t.background : 'transparent',
+              opacity: pressed && !active ? 0.6 : 1,
+              boxShadow: active ? '0 1px 2px rgba(0, 0, 0, 0.08)' : 'none',
+            })}
+          >
+            <Text
+              style={{
+                color: active ? t.text : t.textMuted,
+                fontWeight: active ? '600' : '500',
+                fontSize: 13,
+              }}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 

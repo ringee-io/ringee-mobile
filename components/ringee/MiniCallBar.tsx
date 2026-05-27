@@ -62,18 +62,19 @@ export function MiniCallBar() {
   // placing a real call. Never shown in production builds.
   const call =
     voice?.activeCall ??
-    (__DEV__
-      ? {
-          state: 'active' as const,
-          destination: '+1234567890',
-          callerId: null,
-          muted: false,
-          onHold: false,
-          recording: false,
-          answeredAt: Date.now() - 45000,
-        }
-      : 
-      null);
+    // (__DEV__
+    //   ? {
+    //       state: 'active' as const,
+    //       destination: '+1234567890',
+    //       callerId: null,
+    //       muted: false,
+    //       onHold: false,
+    //       recording: false,
+    //       answeredAt: Date.now() - 45000,
+    //     }
+    //   : 
+      null
+    // );
 
   const [elapsed, setElapsed] = useState(0);
   const [contactName, setContactName] = useState<string | null>(null);
