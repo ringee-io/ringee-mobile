@@ -21,15 +21,6 @@ export default function DialerStackLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Dialer' }} />
-      <Stack.Screen
-        name="active"
-        options={{
-          title: 'On call',
-          presentation: 'fullScreenModal',
-          headerShown: false,
-          animation: 'slide_from_bottom',
-        }}
-      />
     </Stack>
   );
 }

@@ -77,12 +77,20 @@ export const CallAudio = {
     if (!isNative()) return;
     const im = load();
     if (!im) return;
+    if (started) return;
     // `auto: true` lets the OS keep an already-selected route
-    // (Bluetooth / wired headset) instead of forcing earpiece.
+    // (Bluetooth / wired headset) instead of forcing earpiece. With
+    // `media: 'audio'` the native module turns the proximity sensor on so the
+    // screen blanks when the phone is held to the ear.
     safe(() => im.start({ media: 'audio', auto: true }));
+    // Default audio output: earpiece. The user can switch to speaker via the
+    // in-call control.
     safe(() => im.setForceSpeakerphoneOn(false));
     safe(() => im.setSpeakerphoneOn(false));
-    safe(() => im.setKeepScreenOn(true));
+    // NOTE: we intentionally do NOT call setKeepScreenOn(true) here — on
+    // Android that competes with the proximity sensor's screen dimming and
+    // makes the screen stay on while the phone is at the ear. The proximity
+    // sensor itself handles "screen on while you look at it" naturally.
     started = true;
   },
 
@@ -109,7 +117,6 @@ export const CallAudio = {
     started = false;
     const im = load();
     if (!im) return;
-    safe(() => im.setKeepScreenOn(false));
     safe(() => im.setForceSpeakerphoneOn(-1));
     safe(() => im.stop());
   },

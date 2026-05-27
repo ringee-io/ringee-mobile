@@ -31,6 +31,13 @@ export interface CallerOption {
 
 export interface ActiveCall {
   id: string;
+  /**
+   * Telnyx-assigned session id, populated after the call is acknowledged by
+   * the backend. The Ringee backend's call records are keyed on this id —
+   * features like recording will not work until it lands.
+   */
+  telnyxSessionId: string | null;
+  telnyxLegId: string | null;
   destination: string;
   callerId: string | null;
   direction: 'outbound' | 'inbound';

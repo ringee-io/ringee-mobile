@@ -6,11 +6,21 @@
 
 export type SipHeader = { name: string; value: string };
 
+// Subset of the underlying `@telnyx/react-native-voice-sdk` Call exposed by
+// the commons-SDK wrapper via its `telnyxCall` getter. Holds the IDs the
+// Ringee backend needs to attribute the call (see telephony.controller.ts —
+// `findOneBySessionId` looks up by Telnyx session id).
+export interface UnderlyingTelnyxCall {
+  telnyxSessionId?: string | null;
+  telnyxLegId?: string | null;
+  callId?: string | null;
+}
+
 export interface TelnyxCall {
   id?: string;
   callId?: string;
   callState$?: { subscribe: (cb: (state: unknown) => void) => { unsubscribe: () => void } };
-  telnyxCall?: unknown;
+  telnyxCall?: UnderlyingTelnyxCall;
   on?: (event: string, cb: (...args: unknown[]) => void) => void;
   off?: (event: string, cb: (...args: unknown[]) => void) => void;
   hangup?: () => Promise<void> | void;
@@ -25,10 +35,16 @@ export interface TelnyxCall {
   dtmf?: (digit: string) => void;
 }
 
+export interface TelnyxConnectionStream {
+  subscribe: (cb: (state: string) => void) => { unsubscribe: () => void };
+}
+
 export interface TelnyxVoipClient {
   login: (config: unknown) => Promise<void>;
   disconnect?: () => void;
   logout?: () => Promise<void>;
+  connectionState$?: TelnyxConnectionStream;
+  currentConnectionState?: string;
   // The wrapper types customHeaders as Record<string,string>, but at runtime
   // the underlying @telnyx/react-native-voice-sdk forwards a {name,value}[]
   // array (this matches the web SDK + the Ringee backend). We pass the array.

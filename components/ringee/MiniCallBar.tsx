@@ -137,14 +137,14 @@ export function MiniCallBar() {
 
   // Reserve safe-area space so descendant screens lay out their headers below
   // the bar — only when the bar is visible AND docked at the top.
-  const visible = !!call && !pathname.includes('/dialer/active');
+  const visible = !!call && !pathname.includes('/active-call');
   const reservingTop = visible && dock === 'top';
   useEffect(() => {
     setTopReserve(reservingTop ? TOP_BAR_HEIGHT + MARGIN * 2 : 0);
     return () => setTopReserve(0);
   }, [reservingTop, setTopReserve]);
 
-  const openCall = useCallback(() => router.push('/dialer/active' as never), [router]);
+  const openCall = useCallback(() => router.push('/active-call' as never), [router]);
 
   const commitDock = useCallback(
     (next: Dock, dropY: number) => {
@@ -200,7 +200,7 @@ export function MiniCallBar() {
     };
   });
 
-  if (!call || pathname.includes('/dialer/active')) return null;
+  if (!call || pathname.includes('/active-call')) return null;
 
   const isLive = call.state === 'active' || call.state === 'held';
   const subtitle = isLive ? formatElapsed(elapsed) : STATE_LABEL[call.state] ?? call.state;

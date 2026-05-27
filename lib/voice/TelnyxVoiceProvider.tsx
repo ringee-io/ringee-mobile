@@ -78,6 +78,8 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<TelnyxVoipClient | null>(null);
   const callRef = useRef<TelnyxCall | null>(null);
   const stateSubRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const connectionSubRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const sessionIdPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorRef = useRef<string | null>(null);
   // When a freshly-placed call should push the active-call screen. Consumed by
   // the navigation effect below so we never call router.push during render.
@@ -102,10 +104,29 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     setDefaultCallerId,
   } = useCallerOptions();
 
+  // Subscribe to connectionState$ so `registered` reflects the live socket
+  // status. Without this, a silent disconnect (background → resume) leaves us
+  // thinking we're still logged in and the next `newCall` fails.
+  const subscribeConnection = useCallback((client: TelnyxVoipClient) => {
+    connectionSubRef.current?.unsubscribe();
+    if (!client.connectionState$?.subscribe) return;
+    connectionSubRef.current = client.connectionState$.subscribe((raw) => {
+      const state = typeof raw === 'string' ? raw.toUpperCase() : '';
+      const connected = state === 'CONNECTED';
+      setRegistered(connected);
+      if (connected) {
+        setReady(true);
+        setErrorMessage(null);
+      } else if (state === 'ERROR') {
+        setReady(false);
+      }
+    });
+  }, [setErrorMessage]);
+
   // Lazy-init the SDK + log in with the hardcoded credentials from the single
-  // config point. Returns the live client or null on failure.
+  // config point. Returns the live client or null on failure. Re-runs login
+  // if the cached client has lost its socket since the last call.
   const ensureClient = useCallback(async () => {
-    if (clientRef.current && registered) return clientRef.current;
     setErrorMessage(null);
     setConnecting(true);
     try {
@@ -118,7 +139,18 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
           enableAppStateManagement: true,
           debug: TELNYX.debug,
         });
+        subscribeConnection(clientRef.current);
       }
+
+      // Bail early when the SDK reports we're still connected — `login()` on a
+      // live client is a no-op at best and a re-handshake at worst, which
+      // throws "already connected" on some SDK versions and leaves us stuck.
+      const currentState = (clientRef.current.currentConnectionState ?? '').toUpperCase();
+      if (currentState === 'CONNECTED' || registered) {
+        setReady(true);
+        return clientRef.current;
+      }
+
       if (!TELNYX.sipUsername || !TELNYX.sipPassword) {
         throw new Error('Missing Telnyx SIP credentials in constants/Config.ts.');
       }
@@ -127,7 +159,6 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
         callerName: TELNYX.callerName,
       });
       await clientRef.current.login(config);
-      setRegistered(true);
       setReady(true);
       return clientRef.current;
     } catch (err) {
@@ -138,7 +169,7 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     } finally {
       setConnecting(false);
     }
-  }, [registered, setErrorMessage]);
+  }, [registered, setErrorMessage, subscribeConnection]);
 
   // Warm the client on mount so "place call" is snappy and config errors
   // surface at app start instead of mid-dial.
@@ -146,6 +177,8 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     ensureClient();
     return () => {
       stateSubRef.current?.unsubscribe();
+      connectionSubRef.current?.unsubscribe();
+      if (sessionIdPollRef.current) clearInterval(sessionIdPollRef.current);
       try {
         clientRef.current?.disconnect?.();
       } catch {}
@@ -162,17 +195,48 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
       onFailedFast: (reason: string | null, reachedRinging: boolean) => void,
     ) => {
       stateSubRef.current?.unsubscribe();
+      if (sessionIdPollRef.current) clearInterval(sessionIdPollRef.current);
       setActiveCall(base);
 
       let reachedActive = false;
       let reachedRinging = false;
       let answered = false;
 
+      // Poll the underlying call object for the telnyx_session_id — it is
+      // populated asynchronously after the SDK receives Telnyx's response, so
+      // it's not available at newCall() return time. The Ringee backend keys
+      // its Call records on this id, so recording / outcome features need it.
+      const captureIds = () => {
+        const underlying = call.telnyxCall;
+        const sid = underlying?.telnyxSessionId ?? null;
+        const lid = underlying?.telnyxLegId ?? null;
+        if (!sid && !lid) return false;
+        setActiveCall((prev) => {
+          if (!prev) return prev;
+          if (prev.telnyxSessionId === sid && prev.telnyxLegId === lid) return prev;
+          return { ...prev, telnyxSessionId: sid, telnyxLegId: lid };
+        });
+        return Boolean(sid);
+      };
+
+      // First attempt synchronously in case the SDK already populated them
+      // (incoming/re-attached calls).
+      if (!captureIds()) {
+        sessionIdPollRef.current = setInterval(() => {
+          if (captureIds() && sessionIdPollRef.current) {
+            clearInterval(sessionIdPollRef.current);
+            sessionIdPollRef.current = null;
+          }
+        }, 400);
+      }
+
       const handle = (raw: unknown) => {
         const next = mapSdkState(raw);
         if (next === 'active') reachedActive = true;
         if (next === 'ringing') reachedRinging = true;
         if (next === 'active') answered = true;
+        // Session id often lands right after the first state event.
+        captureIds();
 
         setActiveCall((prev) => {
           if (!prev) return prev;
@@ -184,6 +248,10 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
         if (isTerminal(next)) {
           stateSubRef.current?.unsubscribe();
           stateSubRef.current = null;
+          if (sessionIdPollRef.current) {
+            clearInterval(sessionIdPollRef.current);
+            sessionIdPollRef.current = null;
+          }
           callRef.current = null;
           // Restore default audio routing the moment the call ends, regardless
           // of whether it was answered. Proximity monitoring stops here too.
@@ -212,11 +280,13 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
 
   // Navigate to the active-call screen once a freshly-placed call exists and is
   // still alive. Done in an effect (not during render) to avoid router.push
-  // being called inside a setState updater.
+  // being called inside a setState updater. The route lives at the root layout
+  // so it's reachable from any tab — pushing /dialer/active from a non-dialer
+  // tab's stack used to silently fail.
   useEffect(() => {
     if (pendingNavigateRef.current && activeCall && !isTerminal(activeCall.state)) {
       pendingNavigateRef.current = false;
-      router.push('/dialer/active' as never);
+      router.push('/active-call' as never);
     }
   }, [activeCall, router]);
 
@@ -257,6 +327,8 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
 
         const base: ActiveCall = {
           id: call.id || call.callId || String(Date.now()),
+          telnyxSessionId: call.telnyxCall?.telnyxSessionId ?? null,
+          telnyxLegId: call.telnyxCall?.telnyxLegId ?? null,
           destination: e164,
           callerId: cid,
           direction: 'outbound',
@@ -393,7 +465,23 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
 
   const toggleRecording = useCallback(async () => {
     if (!callRef.current || !activeCall) return;
-    const { id: sessionId, recording, recordingId } = activeCall;
+    const { recording, recordingId } = activeCall;
+
+    // The backend looks up the Call row by Telnyx's session id (see
+    // telephony.controller.ts → findOneBySessionId). The SDK-local
+    // `activeCall.id` is just the JS object id and the backend would 404 on it
+    // with "Call not found". Read the live id from the underlying call so we
+    // also pick up late assignments after this callback was scheduled.
+    const sessionId =
+      callRef.current.telnyxCall?.telnyxSessionId ?? activeCall.telnyxSessionId;
+
+    if (!sessionId) {
+      Alert.alert(
+        'Recording not ready',
+        'The call is still being acknowledged by the carrier. Try again in a moment.',
+      );
+      return;
+    }
 
     try {
       if (!recording) {

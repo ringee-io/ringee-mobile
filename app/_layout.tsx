@@ -114,6 +114,15 @@ export default function RootLayout() {
                       name="meeting/[id]"
                       options={detailScreenOptions('Meeting')}
                     />
+                    <Stack.Screen
+                      name="active-call"
+                      options={{
+                        presentation: 'fullScreenModal',
+                        headerShown: false,
+                        animation: 'slide_from_bottom',
+                        gestureEnabled: false,
+                      }}
+                    />
                     <Stack.Screen name="+not-found" />
                   </Stack>
                 </CallBarTopInset>

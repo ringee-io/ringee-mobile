@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -21,7 +20,6 @@ import { Feather } from '@expo/vector-icons';
 
 export default function KeypadSheetScreen() {
   const t = useTheme();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const voice = useVoice();
 
@@ -75,8 +73,7 @@ export default function KeypadSheetScreen() {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    await voice.placeCall({ destination, callerId: selectedCaller?.value });
-    router.back();
+    await voice.placeCall({ destination, callerId: selectedCaller?.value, navigate: true });
   };
 
   return (
