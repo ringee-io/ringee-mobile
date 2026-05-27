@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar } from '@/components/ringee';
+import { Avatar, OrgSwitcher } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
 import { Feather } from '@expo/vector-icons';
 
@@ -42,7 +42,12 @@ export default function SettingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.background }}>
-      <Stack.Screen options={{ title: 'Settings' }} />
+      <Stack.Screen
+        options={{
+          title: 'Settings',
+          headerRight: () => <OrgSwitcher />,
+        }}
+      />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingTop: 12 }}

@@ -1,6 +1,6 @@
-import { useUser } from '@clerk/clerk-expo';
+import { useAuth, useUser } from '@clerk/clerk-expo';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
@@ -19,6 +19,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  OrgSwitcher,
   RowSeparator,
   SectionHeader,
   StatusPill,
@@ -45,8 +46,9 @@ export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useUser();
+  const { orgId } = useAuth();
 
-  const today = useResource(() => TodayApi.getToday(), []);
+  const today = useResource(() => TodayApi.getToday(), [orgId]);
   const [completing, setCompleting] = useState<string | null>(null);
 
   const sections = useMemo(() => {
@@ -218,7 +220,11 @@ export default function TodayScreen() {
   const showError = !!today.error && !today.data;
 
   return (
-    <SectionList
+    <>
+      <Stack.Screen
+        options={{ headerRight: () => <OrgSwitcher /> }}
+      />
+      <SectionList
       sections={sections}
       keyExtractor={(item, idx) =>
         `${item.kind}-${(item as { item: { id: string } }).item.id}-${idx}`
@@ -286,5 +292,6 @@ export default function TodayScreen() {
       contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
       style={{ flex: 1, backgroundColor: t.background }}
     />
+    </>
   );
 }

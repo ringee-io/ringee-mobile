@@ -15,6 +15,7 @@ export * from './ErrorState';
 export * from './LoadingState';
 export * from './NativeCard';
 export * from './NoteModal';
+export * from './OrgSwitcher';
 export * from './OutcomeModal';
 export * from './SearchInput';
 export * from './SectionHeader';

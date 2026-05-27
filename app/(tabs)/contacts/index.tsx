@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/clerk-expo';
 import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl } from 'react-native';
@@ -9,6 +10,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  OrgSwitcher,
   RowSeparator,
 } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
@@ -25,6 +27,7 @@ export default function ContactsScreen() {
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
+  const { orgId } = useAuth();
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(search.trim()), 250);
@@ -41,7 +44,7 @@ export default function ContactsScreen() {
     [debounced],
   );
 
-  const contacts = useInfiniteList<ContactSummary>(fetcher, [debounced], {
+  const contacts = useInfiniteList<ContactSummary>(fetcher, [debounced, orgId], {
     pageSize: PAGE_SIZE,
     getId: (c) => c.id,
   });
@@ -53,6 +56,7 @@ export default function ContactsScreen() {
     <>
       <Stack.Screen
         options={{
+          headerRight: () => <OrgSwitcher />,
           headerSearchBarOptions: {
             placeholder: 'Search name, company, phone',
             onChangeText: (e) => setSearch(e.nativeEvent.text),

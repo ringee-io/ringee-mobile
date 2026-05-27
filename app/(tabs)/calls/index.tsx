@@ -1,5 +1,6 @@
+import { useAuth } from '@clerk/clerk-expo';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Platform, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  OrgSwitcher,
   RowSeparator,
   StatusPill,
 } from '@/components/ringee';
@@ -31,6 +33,7 @@ export default function CallsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>('all');
+  const { orgId } = useAuth();
 
   const fetcher = useCallback(
     ({ page, limit }: { page: number; limit: number }) =>
@@ -42,7 +45,7 @@ export default function CallsScreen() {
     [filter],
   );
 
-  const calls = useInfiniteList<Call>(fetcher, [filter], {
+  const calls = useInfiniteList<Call>(fetcher, [filter, orgId], {
     pageSize: PAGE_SIZE,
     getId: (c) => c.id,
   });
@@ -111,6 +114,8 @@ export default function CallsScreen() {
   const showError = !!calls.error && calls.items.length === 0;
 
   return (
+    <>
+    <Stack.Screen options={{ headerRight: () => <OrgSwitcher /> }} />
     <FlatList<Call>
       data={calls.items}
       keyExtractor={(c) => c.id}
@@ -204,6 +209,7 @@ export default function CallsScreen() {
       contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
       contentInsetAdjustmentBehavior="automatic"
     />
+    </>
   );
 }
 
