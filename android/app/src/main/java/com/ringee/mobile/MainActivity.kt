@@ -1,4 +1,4 @@
-package com.ringee.app
+package com.ringee.mobile
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

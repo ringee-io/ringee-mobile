@@ -276,6 +276,7 @@ export default function ActiveCallScreen() {
               icon={call.muted ? 'mic-off' : 'mic'}
               label={call.muted ? 'Unmute' : 'Mute'}
               active={call.muted}
+              activeColor="#404040"
               onPress={voice.toggleMute}
               disabled={!isLive}
             />
@@ -289,6 +290,7 @@ export default function ActiveCallScreen() {
               icon="volume-2"
               label="Speaker"
               active={call.speakerOn}
+              activeColor="#404040"
               onPress={voice.toggleSpeaker}
               disabled={!isLive}
             />
@@ -313,6 +315,7 @@ export default function ActiveCallScreen() {
               icon={call.onHold ? 'play' : 'pause'}
               label={call.onHold ? 'Resume' : 'Hold'}
               active={call.onHold}
+              activeColor="#404040"
               onPress={voice.toggleHold}
               disabled={!isLive}
             />

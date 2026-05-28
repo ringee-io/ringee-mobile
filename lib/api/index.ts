@@ -7,4 +7,5 @@ export * as CallbacksApi from './callbacks';
 export * as MeetingsApi from './meetings';
 export * as RemindersApi from './reminders';
 export * as PushApi from './push';
+export * as PreferencesApi from './preferences';
 export * as TelephonyApi from './telephony';

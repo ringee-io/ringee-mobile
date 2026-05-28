@@ -1,4 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
@@ -29,7 +30,6 @@ async function ensurePermissions(): Promise<boolean> {
       allowAlert: true,
       allowBadge: true,
       allowSound: true,
-      allowAnnouncements: true,
     },
   });
   return (
@@ -48,10 +48,18 @@ async function getDeviceToken(): Promise<string | null> {
       lightColor: '#0A0A0A',
     });
   }
-  // Backend uses Firebase Cloud Messaging — we need the platform-native
-  // device token (FCM on Android, APNs on iOS) not the Expo push token.
+
+  // Backend posts to Expo's HTTP Push API, which expects an ExponentPushToken
+  // — Expo brokers APNs (iOS) and FCM (Android) for us so we don't manage
+  // either credential set directly. The projectId pin is required so the
+  // token belongs to *this* EAS project even when the binary is a dev client.
   try {
-    const t = await Notifications.getDevicePushTokenAsync();
+    const projectId = (
+      Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined
+    )?.eas?.projectId;
+    const t = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined,
+    );
     return typeof t.data === 'string' ? t.data : null;
   } catch {
     return null;

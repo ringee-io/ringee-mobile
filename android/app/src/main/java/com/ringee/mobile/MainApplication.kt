@@ -1,4 +1,4 @@
-package com.ringee.app
+package com.ringee.mobile
 
 import android.app.Application
 import android.content.res.Configuration

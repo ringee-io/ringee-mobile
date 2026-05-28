@@ -1,13 +1,16 @@
 import { useAuth, useUser, useOrganization } from '@clerk/clerk-expo';
 import Constants from 'expo-constants';
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, OrgSwitcher } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
 import { Feather } from '@expo/vector-icons';
+import { PreferencesApi } from '@/lib/api';
+import type { NotificationPreferences } from '@/lib/api/preferences';
+import { useResource } from '@/lib/hooks/useResource';
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -17,9 +20,44 @@ export default function SettingsScreen() {
   const { organization } = useOrganization();
   const { signOut } = useAuth();
 
-  const [notifyCallbacks, setNotifyCallbacks] = useState(true);
-  const [notifyMeetings, setNotifyMeetings] = useState(true);
-  const [notifyMissed, setNotifyMissed] = useState(true);
+  const prefs = useResource(
+    () => PreferencesApi.getNotificationPreferences(),
+    [],
+  );
+  const [saving, setSaving] = useState<keyof NotificationPreferences | null>(
+    null,
+  );
+
+  const current: NotificationPreferences = prefs.data ?? {
+    callbacks: true,
+    meetings: true,
+    missedCalls: true,
+  };
+
+  const togglePref = useCallback(
+    async (key: keyof NotificationPreferences, value: boolean) => {
+      // Optimistic update — the toggle should feel snappy. Roll back on
+      // failure so the UI reflects the actual persisted value.
+      const previous = prefs.data;
+      prefs.setData((p) => ({
+        ...(p ?? { callbacks: true, meetings: true, missedCalls: true }),
+        [key]: value,
+      }));
+      setSaving(key);
+      try {
+        const next = await PreferencesApi.updateNotificationPreferences({
+          [key]: value,
+        });
+        prefs.setData(next);
+      } catch {
+        if (previous) prefs.setData(previous);
+        Alert.alert('Could not save', 'Please try again.');
+      } finally {
+        setSaving(null);
+      }
+    },
+    [prefs],
+  );
 
   const version = Constants.expoConfig?.version || '1.0.0';
   const email = user?.primaryEmailAddress?.emailAddress;
@@ -99,35 +137,43 @@ export default function SettingsScreen() {
           <SettingsToggle
             icon="phone-call"
             label="Callback reminders"
-            value={notifyCallbacks}
-            onChange={setNotifyCallbacks}
+            value={current.callbacks}
+            onChange={(v) => togglePref('callbacks', v)}
+            disabled={prefs.loading || saving !== null}
+            busy={saving === 'callbacks'}
           />
           <SettingsToggle
             icon="calendar"
             label="Meeting reminders"
-            value={notifyMeetings}
-            onChange={setNotifyMeetings}
+            value={current.meetings}
+            onChange={(v) => togglePref('meetings', v)}
+            disabled={prefs.loading || saving !== null}
+            busy={saving === 'meetings'}
           />
           <SettingsToggle
             icon="phone-missed"
             label="Missed call alerts"
-            value={notifyMissed}
-            onChange={setNotifyMissed}
+            value={current.missedCalls}
+            onChange={(v) => togglePref('missedCalls', v)}
+            disabled={prefs.loading || saving !== null}
+            busy={saving === 'missedCalls'}
             last
           />
         </SettingsSection>
 
-        <Text
-          style={{
-            color: t.textMuted,
-            fontSize: 12,
-            lineHeight: 16,
-            paddingHorizontal: 20,
-            marginTop: 8,
-          }}
-        >
-          Push notifications require backend configuration. These preferences are stored locally for now.
-        </Text>
+        {prefs.error ? (
+          <Text
+            style={{
+              color: t.missed,
+              fontSize: 12,
+              lineHeight: 16,
+              paddingHorizontal: 20,
+              marginTop: 8,
+            }}
+          >
+            Couldn’t load notification preferences. Pull to retry.
+          </Text>
+        ) : null}
 
         <SettingsSection title="About">
           <SettingsRow icon="info" label="Version" value={version} last />
@@ -201,12 +247,16 @@ function SettingsToggle({
   value,
   onChange,
   last,
+  disabled,
+  busy,
 }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   value: boolean;
   onChange: (v: boolean) => void;
   last?: boolean;
+  disabled?: boolean;
+  busy?: boolean;
 }) {
   const t = useTheme();
   return (
@@ -218,6 +268,7 @@ function SettingsToggle({
         paddingVertical: 12,
         borderBottomWidth: last ? 0 : 1,
         borderBottomColor: t.border,
+        opacity: disabled && !busy ? 0.6 : 1,
       }}
     >
       <Feather name={icon} size={18} color={t.icon} />
@@ -231,7 +282,14 @@ function SettingsToggle({
       >
         {label}
       </Text>
-      <Switch value={value} onValueChange={onChange} />
+      {busy ? (
+        <ActivityIndicator
+          size="small"
+          color={t.icon}
+          style={{ marginRight: 8 }}
+        />
+      ) : null}
+      <Switch value={value} onValueChange={onChange} disabled={disabled} />
     </View>
   );
 }

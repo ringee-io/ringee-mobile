@@ -28,7 +28,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>ringee</string>
-				<string>com.ringee.app</string>
+				<string>com.ringee.mobile</string>
 			</array>
 		</dict>
 		<dict>
