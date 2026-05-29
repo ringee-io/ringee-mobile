@@ -271,12 +271,27 @@ export default function ActiveCallScreen() {
         </View>
       ) : (
         <View style={{ marginBottom: 36 }}>
+          {!isLive ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                marginBottom: 20,
+              }}
+            >
+              <Feather name="lock" size={12} color={t.textMuted} />
+              <Text style={{ color: t.textMuted, fontSize: 12.5, fontWeight: '600' }}>
+                Controls unlock when the call connects
+              </Text>
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', marginBottom: 26 }}>
             <ControlButton
               icon={call.muted ? 'mic-off' : 'mic'}
               label={call.muted ? 'Unmute' : 'Mute'}
               active={call.muted}
-              activeColor="#404040"
               onPress={voice.toggleMute}
               disabled={!isLive}
             />
@@ -287,10 +302,9 @@ export default function ActiveCallScreen() {
               disabled={!isLive}
             />
             <ControlButton
-              icon="volume-2"
+              icon={call.speakerOn ? 'volume-2' : 'volume-1'}
               label="Speaker"
               active={call.speakerOn}
-              activeColor="#404040"
               onPress={voice.toggleSpeaker}
               disabled={!isLive}
             />
@@ -315,7 +329,6 @@ export default function ActiveCallScreen() {
               icon={call.onHold ? 'play' : 'pause'}
               label={call.onHold ? 'Resume' : 'Hold'}
               active={call.onHold}
-              activeColor="#404040"
               onPress={voice.toggleHold}
               disabled={!isLive}
             />
@@ -417,8 +430,17 @@ function ControlButton({
   const t = useTheme();
   const bg = active ? (activeColor ?? t.text) : t.surface;
   const fg = active ? (activeColor ? '#fff' : t.primaryForeground) : t.text;
+  // Dim the whole cell (button + label) when disabled so it reads as inactive
+  // rather than just a slightly faded button.
   return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        opacity: disabled && !loading ? 0.4 : 1,
+      }}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+    >
       <Pressable
         onPress={onPress}
         disabled={disabled || loading}
@@ -433,7 +455,7 @@ function ControlButton({
           borderColor: active ? 'transparent' : t.border,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: disabled ? 0.35 : pressed ? 0.7 : 1,
+          opacity: pressed && !disabled ? 0.7 : 1,
         })}
       >
         {loading ? (

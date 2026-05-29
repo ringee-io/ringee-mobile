@@ -84,6 +84,10 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   // When a freshly-placed call should push the active-call screen. Consumed by
   // the navigation effect below so we never call router.push during render.
   const pendingNavigateRef = useRef(false);
+  // Mirror of the latest activeCall so event handlers (proximity sensor, the
+  // control toggles) can read current call state without re-subscribing or
+  // mutating state inside a setState updater.
+  const activeCallRef = useRef<ActiveCall | null>(null);
 
   const [ready, setReady] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -188,6 +192,28 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     };
   }, [ensureClient]);
 
+  // Keep the ref in sync so event handlers always see the latest call.
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
+  // Auto-drop the loudspeaker when the phone is raised to the ear. The OS
+  // blanks the screen via the proximity sensor on its own; this additionally
+  // routes audio back to the earpiece (and reflects it in the UI) so the caller
+  // isn't still on speaker against their head. We never re-enable speaker when
+  // the phone moves away — matching the platform phone-app behavior. The sensor
+  // only emits while a call's audio session is active, so a single
+  // provider-lifetime subscription is enough.
+  useEffect(() => {
+    return CallAudio.addProximityListener((isNear) => {
+      if (!isNear) return;
+      const current = activeCallRef.current;
+      if (!current?.speakerOn) return;
+      CallAudio.setSpeaker(false);
+      setActiveCall((prev) => (prev ? { ...prev, speakerOn: false } : prev));
+    });
+  }, []);
+
   const subscribeCall = useCallback(
     (
       call: TelnyxCall,
@@ -242,7 +268,12 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
           if (!prev) return prev;
           const answeredAt = next === 'active' && !prev.answeredAt ? Date.now() : prev.answeredAt;
           const endedAt = isTerminal(next) && !prev.endedAt ? Date.now() : prev.endedAt;
-          return { ...prev, state: next, answeredAt, endedAt };
+          // The SDK is the source of truth for hold: it emits `held` on hold and
+          // `active` on resume, so keep onHold in lock-step with it. This is what
+          // corrects the button after a resume even if the optimistic toggle and
+          // the SDK round-trip momentarily disagree.
+          const onHold = next === 'held' ? true : next === 'active' ? false : prev.onHold;
+          return { ...prev, state: next, answeredAt, endedAt, onHold };
         });
 
         if (isTerminal(next)) {
@@ -416,43 +447,46 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
 
   const toggleMute = useCallback(() => {
     const call = callRef.current;
-    if (!call) return;
-    setActiveCall((prev) => {
-      if (!prev) return prev;
-      const next = !prev.muted;
-      try {
-        if (next) (call.muteAudio ?? call.mute)?.();
-        else (call.unmuteAudio ?? call.unmute)?.();
-      } catch (err) {
-        console.warn('[voice] mute toggle error', err);
-      }
-      return { ...prev, muted: next };
-    });
+    const current = activeCallRef.current;
+    if (!call || !current) return;
+    const next = !current.muted;
+    setActiveCall((prev) => (prev ? { ...prev, muted: next } : prev));
+    // mute/unmute may be async on the SDK — fire-and-handle so a rejected
+    // promise never escapes as an unhandled rejection.
+    Promise.resolve()
+      .then(() => (next ? (call.mute ?? call.muteAudio)?.() : (call.unmute ?? call.unmuteAudio)?.()))
+      .catch((err) => console.warn('[voice] mute toggle error', err));
   }, []);
 
-  const toggleHold = useCallback(() => {
+  const toggleHold = useCallback(async () => {
     const call = callRef.current;
-    if (!call) return;
-    setActiveCall((prev) => {
-      if (!prev) return prev;
-      const next = !prev.onHold;
-      try {
-        if (next) call.hold?.();
-        else (call.unhold ?? call.resume)?.();
-      } catch (err) {
-        console.warn('[voice] hold toggle error', err);
-      }
-      return { ...prev, onHold: next, state: next ? 'held' : 'active' };
-    });
+    const current = activeCallRef.current;
+    if (!call || !current) return;
+    // Only meaningful once media is flowing; ignore taps while connecting.
+    if (current.state !== 'active' && current.state !== 'held') return;
+    const goingOnHold = !current.onHold;
+    // Optimistic flip for instant feedback; the SDK state event confirms it and
+    // the catch below reverts if the SDK rejects the request.
+    setActiveCall((prev) =>
+      prev ? { ...prev, onHold: goingOnHold, state: goingOnHold ? 'held' : 'active' } : prev,
+    );
+    try {
+      if (goingOnHold) await call.hold?.();
+      else await (call.resume ?? call.unhold)?.();
+    } catch (err) {
+      console.warn('[voice] hold toggle failed', err);
+      setActiveCall((prev) =>
+        prev ? { ...prev, onHold: !goingOnHold, state: !goingOnHold ? 'held' : 'active' } : prev,
+      );
+    }
   }, []);
 
   const toggleSpeaker = useCallback(() => {
-    setActiveCall((prev) => {
-      if (!prev) return prev;
-      const next = !prev.speakerOn;
-      CallAudio.setSpeaker(next);
-      return { ...prev, speakerOn: next };
-    });
+    const current = activeCallRef.current;
+    if (!current) return;
+    const next = !current.speakerOn;
+    CallAudio.setSpeaker(next);
+    setActiveCall((prev) => (prev ? { ...prev, speakerOn: next } : prev));
   }, []);
 
   const sendDtmf = useCallback((digit: string) => {

@@ -1,0 +1,21 @@
+diff --git a/node_modules/@telnyx/react-native-voice-sdk/lib/call.ts b/node_modules/@telnyx/react-native-voice-sdk/lib/call.ts
+index c71e0ac..6a1042b 100644
+--- a/node_modules/@telnyx/react-native-voice-sdk/lib/call.ts
++++ b/node_modules/@telnyx/react-native-voice-sdk/lib/call.ts
+@@ -504,10 +504,13 @@ export class Call extends EventEmitter<CallEvents> {
+     });
+     const result = await this.connection.sendAndWait(unholdRequest);
+     if (!isModifyCallAnswer(result)) {
+-      throw new Error(`[Call] Invalid hold response received: ${JSON.stringify(result)}`);
++      throw new Error(`[Call] Invalid unhold response received: ${JSON.stringify(result)}`);
+     }
+-    if (result.result.holdState !== 'held') {
+-      throw new Error(`[Call] Hold action failed: ${JSON.stringify(result)}`);
++    // A successful unhold returns holdState 'unheld' (not 'held'). The original
++    // check copy-pasted the hold guard, so it threw on every successful unhold
++    // and never reached setState('active') — leaving the call stuck on hold.
++    if (result.result.holdState !== 'unheld') {
++      throw new Error(`[Call] Unhold action failed: ${JSON.stringify(result)}`);
+     }
+ 
+     this.setState('active');

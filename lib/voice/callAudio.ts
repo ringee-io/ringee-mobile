@@ -12,7 +12,7 @@
 // The native module is loaded lazily so the JS bundle still runs in Expo Go
 // or on web — it just becomes a no-op there.
 
-import { Platform } from 'react-native';
+import { DeviceEventEmitter, NativeEventEmitter, NativeModules, Platform } from 'react-native';
 
 type InCallManager = {
   start: (opts?: {
@@ -106,6 +106,32 @@ export const CallAudio = {
     // -1 = "don't force" (let the OS decide based on external devices);
     // true = force speaker on; false = force off.
     safe(() => im.setForceSpeakerphoneOn(on ? true : -1));
+  },
+
+  /**
+   * Subscribe to the in-call proximity sensor. `onChange` fires with `true`
+   * when the phone is raised to the ear and `false` when it is moved away.
+   * Returns an unsubscribe function. No-op (returns a noop) off-device.
+   *
+   * The native module emits a `Proximity` event on both platforms; on iOS it
+   * must be observed through a NativeEventEmitter so the RCTEventEmitter starts
+   * observing (otherwise the events are dropped), while Android delivers it via
+   * the shared device event emitter.
+   */
+  addProximityListener(onChange: (isNear: boolean) => void): () => void {
+    if (!isNative()) return () => {};
+    const native = NativeModules.InCallManager;
+    if (!native) return () => {};
+    const emitter =
+      Platform.OS === 'ios' ? new NativeEventEmitter(native) : DeviceEventEmitter;
+    const sub = emitter.addListener('Proximity', (event: { isNear?: boolean } | undefined) => {
+      onChange(Boolean(event?.isNear));
+    });
+    return () => {
+      try {
+        sub.remove();
+      } catch {}
+    };
   },
 
   /**
