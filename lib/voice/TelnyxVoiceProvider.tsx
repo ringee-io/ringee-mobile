@@ -71,6 +71,48 @@ export function useOptionalVoice(): VoiceContextValue | null {
   return useContext(VoiceContext);
 }
 
+// How long to wait for the socket to actually reach CONNECTED after a login
+// attempt before giving up. `login()` resolves as soon as the attempt is
+// *initiated*, not when the socket is usable, so we must watch
+// connectionState$ to know we can really place a call.
+const CONNECT_TIMEOUT_MS = 12000;
+
+/**
+ * Resolves `true` once the client's connection reaches CONNECTED, `false` if it
+ * errors out or the timeout elapses. Resolves immediately when already
+ * connected. Transitional states (CONNECTING / RECONNECTING / DISCONNECTED)
+ * keep it waiting — those are the normal steps of a fresh login.
+ */
+function waitForConnected(
+  client: TelnyxVoipClient,
+  timeoutMs = CONNECT_TIMEOUT_MS,
+): Promise<boolean> {
+  const stateOf = () => (client.currentConnectionState ?? '').toUpperCase();
+  if (stateOf() === 'CONNECTED') return Promise.resolve(true);
+  if (!client.connectionState$?.subscribe) {
+    // No stream to observe — re-check the synchronous state after a short grace.
+    return new Promise((resolve) =>
+      setTimeout(() => resolve(stateOf() === 'CONNECTED'), 800),
+    );
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      sub.unsubscribe();
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(stateOf() === 'CONNECTED'), timeoutMs);
+    const sub = client.connectionState$!.subscribe((raw) => {
+      const state = typeof raw === 'string' ? raw.toUpperCase() : '';
+      if (state === 'CONNECTED') finish(true);
+      else if (state === 'ERROR') finish(false);
+    });
+  });
+}
+
 export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { userId, orgId } = useAuth();
@@ -127,9 +169,12 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     });
   }, [setErrorMessage]);
 
-  // Lazy-init the SDK + log in with the hardcoded credentials from the single
-  // config point. Returns the live client or null on failure. Re-runs login
-  // if the cached client has lost its socket since the last call.
+  // Lazy-init the SDK and guarantee a *live* connection before returning.
+  // Returns the connected client, or null on failure. This is the single
+  // safety net every call goes through: it never trusts our cached `registered`
+  // flag (which can stay true after a silent drop and leave the user unable to
+  // place a second call) — the SDK's own currentConnectionState is the source
+  // of truth, and we block until the socket is really CONNECTED.
   const ensureClient = useCallback(async () => {
     setErrorMessage(null);
     setConnecting(true);
@@ -145,35 +190,69 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
         });
         subscribeConnection(clientRef.current);
       }
+      const client = clientRef.current;
+      const stateOf = () => (client.currentConnectionState ?? '').toUpperCase();
 
-      // Bail early when the SDK reports we're still connected — `login()` on a
-      // live client is a no-op at best and a re-handshake at worst, which
-      // throws "already connected" on some SDK versions and leaves us stuck.
-      const currentState = (clientRef.current.currentConnectionState ?? '').toUpperCase();
-      if (currentState === 'CONNECTED' || registered) {
+      // Already connected — nothing to do, dial right away.
+      if (stateOf() === 'CONNECTED') {
         setReady(true);
-        return clientRef.current;
+        setRegistered(true);
+        return client;
       }
 
       if (!TELNYX.sipUsername || !TELNYX.sipPassword) {
         throw new Error('Missing Telnyx SIP credentials in constants/Config.ts.');
       }
+
+      // The socket is already (re)connecting — let it settle on its own before
+      // forcing another login. Racing two logins is what throws "already
+      // connected" and wedges the client.
+      if (stateOf() === 'CONNECTING' || stateOf() === 'RECONNECTING') {
+        if (await waitForConnected(client)) {
+          setReady(true);
+          setRegistered(true);
+          return client;
+        }
+      }
+
+      // Not connected (disconnected, errored, or a wedged half-open socket).
+      // Reset any broken/half-open session first so login() starts from a clean
+      // slate instead of throwing "already connected", then log in fresh. A
+      // never-connected client (DISCONNECTED / unknown) needs no reset.
+      const reset = stateOf();
+      if (reset === 'ERROR' || reset === 'CONNECTING' || reset === 'RECONNECTING') {
+        try {
+          await client.logout?.();
+        } catch {
+          // best-effort reset — login below is what actually matters
+        }
+      }
       const config = mod.createCredentialConfig(TELNYX.sipUsername, TELNYX.sipPassword, {
         debug: TELNYX.debug,
         callerName: TELNYX.callerName,
       });
-      await clientRef.current.login(config);
+      await client.login(config);
+
+      // Block until the socket is genuinely CONNECTED. Returning before this is
+      // exactly what made the next newCall() fail on a half-open socket.
+      if (!(await waitForConnected(client))) {
+        throw new Error(
+          errorRef.current ||
+            'Could not connect to Telnyx. Check your network and try again.',
+        );
+      }
       setReady(true);
-      return clientRef.current;
+      setRegistered(true);
+      return client;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMessage(msg);
-      console.warn('[voice] login failed', msg);
+      console.warn('[voice] connect failed', msg);
       return null;
     } finally {
       setConnecting(false);
     }
-  }, [registered, setErrorMessage, subscribeConnection]);
+  }, [setErrorMessage, subscribeConnection]);
 
   // Warm the client on mount so "place call" is snappy and config errors
   // surface at app start instead of mid-dial.
