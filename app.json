@@ -46,9 +46,13 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/apple-touch-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 112,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#000000",
+          "dark": {
+            "image": "./assets/images/apple-touch-icon.png",
+            "backgroundColor": "#000000"
+          }
         }
       ],
       [

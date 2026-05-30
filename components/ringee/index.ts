@@ -1,3 +1,4 @@
+export * from './AnimatedSplash';
 export * from './AppHeader';
 export * from './BottomSheet';
 export * from './HeaderMenuButton';

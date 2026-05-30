@@ -3,7 +3,9 @@ import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,9 +15,18 @@ import '../global.css';
 
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { CallBarLayoutProvider, CallBarTopInset, MiniCallBar } from '@/components/ringee';
+import {
+  AnimatedSplash,
+  CallBarLayoutProvider,
+  CallBarTopInset,
+  MiniCallBar,
+} from '@/components/ringee';
 import { AuthBridge } from '@/lib/auth/AuthBridge';
 import { TelnyxVoiceProvider } from '@/lib/voice';
+
+// Keep the native splash up until our animated one is mounted and ready to take
+// over — AnimatedSplash calls hideAsync() on its first frame for a seamless cut.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Native header — iOS shows the Liquid Glass material via headerTransparent
 // + headerBlurEffect; Android falls back to an opaque header. Per-screen
@@ -44,12 +55,14 @@ if (!publishableKey) {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
+  const [splashDone, setSplashDone] = useState(false);
 
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
   if (!loaded) {
+    // Native splash stays up (auto-hide is prevented) until fonts are ready.
     return null;
   }
 
@@ -132,6 +145,10 @@ export default function RootLayout() {
             </TelnyxVoiceProvider>
           </ThemeProvider>
         </SafeAreaProvider>
+
+        {!splashDone && (
+          <AnimatedSplash isReady={loaded} onFinish={() => setSplashDone(true)} />
+        )}
       </GestureHandlerRootView>
     </ClerkProvider>
   );
