@@ -123,6 +123,11 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   const connectionSubRef = useRef<{ unsubscribe: () => void } | null>(null);
   const sessionIdPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorRef = useRef<string | null>(null);
+  // Synchronous mirror of `registered`, driven by the connectionState$
+  // subscription. Lets `ensureClient` read the live socket status without
+  // depending on the `registered` state (which would change its identity and
+  // re-fire the warm-up effect → disconnect/reconnect churn).
+  const registeredRef = useRef(false);
   // When a freshly-placed call should push the active-call screen. Consumed by
   // the navigation effect below so we never call router.push during render.
   const pendingNavigateRef = useRef(false);
@@ -159,6 +164,7 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     connectionSubRef.current = client.connectionState$.subscribe((raw) => {
       const state = typeof raw === 'string' ? raw.toUpperCase() : '';
       const connected = state === 'CONNECTED';
+      registeredRef.current = connected;
       setRegistered(connected);
       if (connected) {
         setReady(true);
@@ -169,12 +175,16 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     });
   }, [setErrorMessage]);
 
-  // Lazy-init the SDK and guarantee a *live* connection before returning.
-  // Returns the connected client, or null on failure. This is the single
-  // safety net every call goes through: it never trusts our cached `registered`
-  // flag (which can stay true after a silent drop and leave the user unable to
-  // place a second call) — the SDK's own currentConnectionState is the source
-  // of truth, and we block until the socket is really CONNECTED.
+  // Lazy-init the SDK and make sure we have a live connection before returning.
+  // Returns the connected client, or null on failure. Used both as the on-mount
+  // warm-up and as the safety net every call goes through.
+  //
+  // Crucial: when the socket is already alive we return it untouched and NEVER
+  // call login() again. Re-logging in on a live client re-registers the SIP
+  // session, and the resulting duplicate registration makes Telnyx route the
+  // call's media to the stale leg → the call connects and is answered but no
+  // audio flows in either direction. We only log in when we're genuinely not
+  // connected, and only then block until the socket is really CONNECTED.
   const ensureClient = useCallback(async () => {
     setErrorMessage(null);
     setConnecting(true);
@@ -193,10 +203,12 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
       const client = clientRef.current;
       const stateOf = () => (client.currentConnectionState ?? '').toUpperCase();
 
-      // Already connected — nothing to do, dial right away.
-      if (stateOf() === 'CONNECTED') {
+      // Already connected — by the SDK's own state or our live `registered`
+      // mirror (which the connectionState$ subscription keeps in lock-step with
+      // the socket, flipping false on any drop). Dial on the existing session;
+      // do NOT re-login.
+      if (stateOf() === 'CONNECTED' || registeredRef.current) {
         setReady(true);
-        setRegistered(true);
         return client;
       }
 
@@ -204,37 +216,27 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
         throw new Error('Missing Telnyx SIP credentials in constants/Config.ts.');
       }
 
-      // The socket is already (re)connecting — let it settle on its own before
-      // forcing another login. Racing two logins is what throws "already
-      // connected" and wedges the client.
+      // A login is already in flight — the on-mount warm-up, or an SDK
+      // auto-reconnect from enableAppStateManagement. Don't race a second
+      // login (that's what throws "already connected" and wedges the client);
+      // just wait for the in-flight attempt to settle.
       if (stateOf() === 'CONNECTING' || stateOf() === 'RECONNECTING') {
         if (await waitForConnected(client)) {
           setReady(true);
-          setRegistered(true);
           return client;
         }
       }
 
-      // Not connected (disconnected, errored, or a wedged half-open socket).
-      // Reset any broken/half-open session first so login() starts from a clean
-      // slate instead of throwing "already connected", then log in fresh. A
-      // never-connected client (DISCONNECTED / unknown) needs no reset.
-      const reset = stateOf();
-      if (reset === 'ERROR' || reset === 'CONNECTING' || reset === 'RECONNECTING') {
-        try {
-          await client.logout?.();
-        } catch {
-          // best-effort reset — login below is what actually matters
-        }
-      }
+      // Genuinely disconnected — log in fresh.
       const config = mod.createCredentialConfig(TELNYX.sipUsername, TELNYX.sipPassword, {
         debug: TELNYX.debug,
         callerName: TELNYX.callerName,
       });
       await client.login(config);
 
-      // Block until the socket is genuinely CONNECTED. Returning before this is
-      // exactly what made the next newCall() fail on a half-open socket.
+      // login() resolves when the attempt is *initiated*, not when the socket
+      // is usable. Block until it's genuinely CONNECTED so the call placed
+      // right after this doesn't go out over a half-open socket.
       if (!(await waitForConnected(client))) {
         throw new Error(
           errorRef.current ||
@@ -242,7 +244,6 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
         );
       }
       setReady(true);
-      setRegistered(true);
       return client;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
