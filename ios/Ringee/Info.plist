@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -62,7 +64,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Ringee needs microphone access to place and receive calls.</string>
+	<string>Ringee needs microphone access to place voice calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your photos</string>
 	<key>NSUserActivityTypes</key>
@@ -73,8 +75,6 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>remote-notification</string>
-		<string>voip</string>
 		<string>audio</string>
 	</array>
 	<key>UILaunchStoryboardName</key>

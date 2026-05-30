@@ -12,12 +12,11 @@
       "bundleIdentifier": "com.ringee.mobile",
       "icon": "./assets/images/apple-touch-icon.png",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
-          "remote-notification",
-          "voip",
           "audio"
         ],
-        "NSMicrophoneUsageDescription": "Ringee needs microphone access to place and receive calls."
+        "NSMicrophoneUsageDescription": "Ringee needs microphone access to place voice calls."
       }
     },
     "android": {

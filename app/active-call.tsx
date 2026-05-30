@@ -307,6 +307,7 @@ export default function ActiveCallScreen() {
               active={call.speakerOn}
               onPress={voice.toggleSpeaker}
               disabled={!isLive}
+              activeColor={t.missed}
             />
           </View>
           <View style={{ flexDirection: 'row' }}>
@@ -325,19 +326,19 @@ export default function ActiveCallScreen() {
               onPress={voice.toggleRecording}
               disabled={!isLive || (!recordingReady && !call.recording)}
             />
-            <ControlButton
+            {/* <ControlButton
               icon={call.onHold ? 'play' : 'pause'}
               label={call.onHold ? 'Resume' : 'Hold'}
               active={call.onHold}
               onPress={voice.toggleHold}
               disabled={!isLive}
-            />
-            <ControlButton
+            /> */}
+            {/* <ControlButton
               icon="user-plus"
               label="Add"
               onPress={() => {}}
               disabled
-            />
+            /> */}
           </View>
         </View>
       )}

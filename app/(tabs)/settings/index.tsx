@@ -1,16 +1,29 @@
 import { useAuth, useUser, useOrganization } from '@clerk/clerk-expo';
 import Constants from 'expo-constants';
 import { Stack, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, OrgSwitcher } from '@/components/ringee';
+import { WEB_URL_PRIVACY, WEB_URL_TERMS } from '@/constants/Config';
 import { useTheme } from '@/hooks/useTheme';
 import { Feather } from '@expo/vector-icons';
 import { PreferencesApi } from '@/lib/api';
 import type { NotificationPreferences } from '@/lib/api/preferences';
 import { useResource } from '@/lib/hooks/useResource';
+
+async function openInBrowser(url: string) {
+  try {
+    await WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+      controlsColor: '#3B82F6',
+    });
+  } catch {
+    // swallow — opening an external page should never crash Settings
+  }
+}
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -175,6 +188,20 @@ export default function SettingsScreen() {
           </Text>
         ) : null}
 
+        <SettingsSection title="Legal">
+          <SettingsLinkRow
+            icon="shield"
+            label="Privacy Policy"
+            onPress={() => openInBrowser(WEB_URL_PRIVACY)}
+          />
+          <SettingsLinkRow
+            icon="file-text"
+            label="Terms of Use"
+            onPress={() => openInBrowser(WEB_URL_TERMS)}
+            last
+          />
+        </SettingsSection>
+
         <SettingsSection title="About">
           <SettingsRow icon="info" label="Version" value={version} last />
         </SettingsSection>
@@ -325,5 +352,44 @@ function SettingsRow({
         <Text style={{ color: t.textMuted, fontSize: 14 }}>{value}</Text>
       ) : null}
     </View>
+  );
+}
+
+function SettingsLinkRow({
+  icon,
+  label,
+  onPress,
+  last,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          borderBottomWidth: last ? 0 : 1,
+          borderBottomColor: t.border,
+        }}
+      >
+        <Feather name={icon} size={18} color={t.icon} />
+        <Text style={{ color: t.text, fontSize: 15, marginLeft: 12, flex: 1 }}>
+          {label}
+        </Text>
+        <Feather name="external-link" size={16} color={t.iconMuted} />
+      </View>
+    </Pressable>
   );
 }
