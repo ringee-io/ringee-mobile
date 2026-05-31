@@ -14,7 +14,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
-          "audio"
+          "audio",
+          "voip"
         ],
         "NSMicrophoneUsageDescription": "Ringee needs microphone access to place voice calls."
       }

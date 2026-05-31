@@ -24,6 +24,11 @@ type InCallManager = {
   setSpeakerphoneOn: (on: boolean) => void;
   setForceSpeakerphoneOn: (flag: boolean | -1 | 0 | 1) => void;
   setKeepScreenOn: (on: boolean) => void;
+  // Proximity monitoring can be driven independently of the audio session on
+  // iOS — used so we can keep the proximity sensor without letting
+  // InCallManager activate/own the AVAudioSession (see start() below).
+  startProximitySensor?: () => void;
+  stopProximitySensor?: () => void;
   turnScreenOn?: () => void;
   turnScreenOff?: () => void;
 };
@@ -78,15 +83,27 @@ export const CallAudio = {
     const im = load();
     if (!im) return;
     if (started) return;
-    // `auto: true` lets the OS keep an already-selected route
-    // (Bluetooth / wired headset) instead of forcing earpiece. With
-    // `media: 'audio'` the native module turns the proximity sensor on so the
-    // screen blanks when the phone is held to the ear.
-    safe(() => im.start({ media: 'audio', auto: true }));
-    // Default audio output: earpiece. The user can switch to speaker via the
-    // in-call control.
-    safe(() => im.setForceSpeakerphoneOn(false));
-    safe(() => im.setSpeakerphoneOn(false));
+    if (Platform.OS === 'ios') {
+      // iOS: CallKit (via the Telnyx commons SDK) owns the AVAudioSession. The
+      // SDK flips RTCAudioSession.useManualAudio = true at load and then
+      // activates/deactivates the session inside the CXProvider callbacks. If
+      // we also call InCallManager.start() here it runs
+      // AVAudioSession.setActive(YES), which fights CallKit and leaves the call
+      // with NO audio in either direction. So we stay hands-off on the session
+      // and only drive the proximity sensor (independent of activation); CallKit
+      // routes to the earpiece by default.
+      safe(() => im.startProximitySensor?.());
+    } else {
+      // Android: InCallManager owns the audio routing. `auto: true` lets the OS
+      // keep an already-selected route (Bluetooth / wired headset) instead of
+      // forcing earpiece. With `media: 'audio'` the native module turns the
+      // proximity sensor on so the screen blanks when held to the ear.
+      safe(() => im.start({ media: 'audio', auto: true }));
+      // Default audio output: earpiece. The user can switch to speaker via the
+      // in-call control.
+      safe(() => im.setForceSpeakerphoneOn(false));
+      safe(() => im.setSpeakerphoneOn(false));
+    }
     // NOTE: we intentionally do NOT call setKeepScreenOn(true) here — on
     // Android that competes with the proximity sensor's screen dimming and
     // makes the screen stay on while the phone is at the ear. The proximity
@@ -102,10 +119,21 @@ export const CallAudio = {
     if (!isNative()) return;
     const im = load();
     if (!im) return;
-    safe(() => im.setSpeakerphoneOn(on));
-    // -1 = "don't force" (let the OS decide based on external devices);
-    // true = force speaker on; false = force off.
-    safe(() => im.setForceSpeakerphoneOn(on ? true : -1));
+    if (Platform.OS === 'ios') {
+      // On iOS setForceSpeakerphoneOn only calls
+      // AVAudioSession.overrideOutputAudioPort(speaker | none) — the
+      // Apple-recommended way to toggle the loudspeaker during a CallKit call.
+      // It does NOT re-activate or re-categorize the session, so it is safe
+      // alongside CallKit's manual audio. (We avoid setSpeakerphoneOn here: on
+      // iOS that one DOES setCategory + setActive and would fight CallKit.)
+      // Booleans map to force-on (1) / force-off (-1) in the native module.
+      safe(() => im.setForceSpeakerphoneOn(on));
+    } else {
+      safe(() => im.setSpeakerphoneOn(on));
+      // -1 = "don't force" (let the OS decide based on external devices);
+      // true = force speaker on; false = force off.
+      safe(() => im.setForceSpeakerphoneOn(on ? true : -1));
+    }
   },
 
   /**
@@ -143,7 +171,16 @@ export const CallAudio = {
     started = false;
     const im = load();
     if (!im) return;
-    safe(() => im.setForceSpeakerphoneOn(-1));
-    safe(() => im.stop());
+    if (Platform.OS === 'ios') {
+      // Mirror start(): release the proximity sensor and clear any speaker
+      // override. We do NOT call InCallManager.stop() — that runs
+      // AVAudioSession.setActive(NO); CallKit deactivates the session itself in
+      // its didDeactivate callback.
+      safe(() => im.setForceSpeakerphoneOn(false));
+      safe(() => im.stopProximitySensor?.());
+    } else {
+      safe(() => im.setForceSpeakerphoneOn(-1));
+      safe(() => im.stop());
+    }
   },
 };
