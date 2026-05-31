@@ -45,6 +45,12 @@ export interface TelnyxVoipClient {
   logout?: () => Promise<void>;
   connectionState$?: TelnyxConnectionStream;
   currentConnectionState?: string;
+  // The SDK's own view of the live call(s). After a background → foreground
+  // reconnect the SDK can rebuild the call object, so these — not a cached
+  // reference — are the source of truth for hanging up the call that the
+  // current socket actually owns.
+  currentActiveCall?: TelnyxCall | null;
+  currentCalls?: TelnyxCall[];
   // The wrapper types customHeaders as Record<string,string>, but at runtime
   // the underlying @telnyx/react-native-voice-sdk forwards a {name,value}[]
   // array (this matches the web SDK + the Ringee backend). We pass the array.

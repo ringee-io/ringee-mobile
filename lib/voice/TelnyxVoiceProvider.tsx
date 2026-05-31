@@ -518,11 +518,46 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   );
 
   const hangup = useCallback(async () => {
-    try {
-      await callRef.current?.hangup?.();
-    } catch (err) {
-      console.warn('[voice] hangup error', err);
-    }
+    const client = clientRef.current;
+    // Hang up every call the SDK currently considers live — not just our cached
+    // `callRef`. After a background → foreground cycle the socket can reconnect
+    // and the SDK rebuilds the call object, leaving `callRef` pointing at a dead
+    // local leg; hanging only that up closes our side while the real call keeps
+    // running on the server (the "it only hung up on me" bug). The SDK's
+    // current call(s) are the ones the live socket actually owns, so their
+    // hangup() is what sends the BYE that ends it for both parties.
+    const targets = new Set<TelnyxCall>();
+    if (client?.currentActiveCall) targets.add(client.currentActiveCall);
+    for (const c of client?.currentCalls ?? []) targets.add(c);
+    if (callRef.current) targets.add(callRef.current);
+    if (targets.size === 0) return;
+
+    await Promise.all(
+      [...targets].map((call) =>
+        Promise.resolve()
+          .then(() => call.hangup?.())
+          .catch((err) => console.warn('[voice] hangup error', err)),
+      ),
+    );
+
+    // UI safety net: if the call object was rebuilt across a reconnect, the
+    // state subscription from subscribeCall() is stale and won't emit the
+    // terminal event that dismisses the active-call screen. The user explicitly
+    // hung up, so tear the local UI down ourselves if it's still showing
+    // shortly after. In the normal path the subscription has already cleared
+    // activeCall by now, so this no-ops.
+    setTimeout(() => {
+      if (!activeCallRef.current) return;
+      stateSubRef.current?.unsubscribe();
+      stateSubRef.current = null;
+      if (sessionIdPollRef.current) {
+        clearInterval(sessionIdPollRef.current);
+        sessionIdPollRef.current = null;
+      }
+      callRef.current = null;
+      CallAudio.stop();
+      setActiveCall(null);
+    }, 1500);
   }, []);
 
   const toggleMute = useCallback(() => {

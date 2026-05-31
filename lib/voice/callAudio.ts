@@ -11,6 +11,17 @@
 //
 // The native module is loaded lazily so the JS bundle still runs in Expo Go
 // or on web — it just becomes a no-op there.
+//
+// ⚠️ iOS audio-session ownership: on iOS the Telnyx SDK's CallKit/CallBridge is
+// the SOLE owner of the AVAudioSession. It sets the category and calls
+// `setActive(true)` inside `CXProvider` `didActivate`, which is what actually
+// starts WebRTC mic capture + playback (see CallKitBridge.swift). If we ALSO
+// drive the session from here via `incall-manager`'s `start()`/`stop()`
+// (`setCategory` + `setActive`), the two fight over the same session and the
+// CallKit → WebRTC audio hand-off never completes: the call connects but no
+// audio flows in either direction. So on iOS we stay hands-off for the session
+// lifecycle and only issue the speaker-route override (which is non-destructive
+// — it just flips the output port on CallKit's already-active session).
 
 import { DeviceEventEmitter, NativeEventEmitter, NativeModules, Platform } from 'react-native';
 
@@ -75,9 +86,13 @@ export const CallAudio = {
    */
   start(): void {
     if (!isNative()) return;
+    if (started) return;
+    started = true;
+    // iOS: hands off — CallKit/CallBridge owns the AVAudioSession. Touching it
+    // here (start/setActive) is what broke call audio. See the file header.
+    if (Platform.OS === 'ios') return;
     const im = load();
     if (!im) return;
-    if (started) return;
     // `auto: true` lets the OS keep an already-selected route
     // (Bluetooth / wired headset) instead of forcing earpiece. With
     // `media: 'audio'` the native module turns the proximity sensor on so the
@@ -91,7 +106,6 @@ export const CallAudio = {
     // Android that competes with the proximity sensor's screen dimming and
     // makes the screen stay on while the phone is at the ear. The proximity
     // sensor itself handles "screen on while you look at it" naturally.
-    started = true;
   },
 
   /**
@@ -102,7 +116,16 @@ export const CallAudio = {
     if (!isNative()) return;
     const im = load();
     if (!im) return;
-    safe(() => im.setSpeakerphoneOn(on));
+    // iOS: only flip the output route via overrideOutputAudioPort
+    // (setForceSpeakerphoneOn). We must NOT call setSpeakerphoneOn() here: on
+    // iOS it runs setCategory + setActive(true), which would seize the audio
+    // session back from CallKit and kill the call audio mid-call — the very
+    // conflict we're avoiding. setForceSpeakerphoneOn only overrides the port
+    // (the category already matches CallKit's PlayAndRecord), so it routes to
+    // speaker/earpiece without disturbing CallKit's session.
+    if (Platform.OS !== 'ios') {
+      safe(() => im.setSpeakerphoneOn(on));
+    }
     // -1 = "don't force" (let the OS decide based on external devices);
     // true = force speaker on; false = force off.
     safe(() => im.setForceSpeakerphoneOn(on ? true : -1));
@@ -141,6 +164,10 @@ export const CallAudio = {
     if (!isNative()) return;
     if (!started) return;
     started = false;
+    // iOS: CallKit releases the audio session itself on `didDeactivate`; we
+    // must not call incall-manager's stop()/setActive(false) or we'd tear the
+    // session down underneath it.
+    if (Platform.OS === 'ios') return;
     const im = load();
     if (!im) return;
     safe(() => im.setForceSpeakerphoneOn(-1));
