@@ -71,6 +71,48 @@ export function useOptionalVoice(): VoiceContextValue | null {
   return useContext(VoiceContext);
 }
 
+// How long to wait for the socket to actually reach CONNECTED after a login
+// attempt before giving up. `login()` resolves as soon as the attempt is
+// *initiated*, not when the socket is usable, so we must watch
+// connectionState$ to know we can really place a call.
+const CONNECT_TIMEOUT_MS = 12000;
+
+/**
+ * Resolves `true` once the client's connection reaches CONNECTED, `false` if it
+ * errors out or the timeout elapses. Resolves immediately when already
+ * connected. Transitional states (CONNECTING / RECONNECTING / DISCONNECTED)
+ * keep it waiting — those are the normal steps of a fresh login.
+ */
+function waitForConnected(
+  client: TelnyxVoipClient,
+  timeoutMs = CONNECT_TIMEOUT_MS,
+): Promise<boolean> {
+  const stateOf = () => (client.currentConnectionState ?? '').toUpperCase();
+  if (stateOf() === 'CONNECTED') return Promise.resolve(true);
+  if (!client.connectionState$?.subscribe) {
+    // No stream to observe — re-check the synchronous state after a short grace.
+    return new Promise((resolve) =>
+      setTimeout(() => resolve(stateOf() === 'CONNECTED'), 800),
+    );
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      sub.unsubscribe();
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(stateOf() === 'CONNECTED'), timeoutMs);
+    const sub = client.connectionState$!.subscribe((raw) => {
+      const state = typeof raw === 'string' ? raw.toUpperCase() : '';
+      if (state === 'CONNECTED') finish(true);
+      else if (state === 'ERROR') finish(false);
+    });
+  });
+}
+
 export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { userId, orgId } = useAuth();
@@ -81,6 +123,11 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   const connectionSubRef = useRef<{ unsubscribe: () => void } | null>(null);
   const sessionIdPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorRef = useRef<string | null>(null);
+  // Synchronous mirror of `registered`, driven by the connectionState$
+  // subscription. Lets `ensureClient` read the live socket status without
+  // depending on the `registered` state (which would change its identity and
+  // re-fire the warm-up effect → disconnect/reconnect churn).
+  const registeredRef = useRef(false);
   // When a freshly-placed call should push the active-call screen. Consumed by
   // the navigation effect below so we never call router.push during render.
   const pendingNavigateRef = useRef(false);
@@ -117,6 +164,7 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     connectionSubRef.current = client.connectionState$.subscribe((raw) => {
       const state = typeof raw === 'string' ? raw.toUpperCase() : '';
       const connected = state === 'CONNECTED';
+      registeredRef.current = connected;
       setRegistered(connected);
       if (connected) {
         setReady(true);
@@ -127,9 +175,16 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
     });
   }, [setErrorMessage]);
 
-  // Lazy-init the SDK + log in with the hardcoded credentials from the single
-  // config point. Returns the live client or null on failure. Re-runs login
-  // if the cached client has lost its socket since the last call.
+  // Lazy-init the SDK and make sure we have a live connection before returning.
+  // Returns the connected client, or null on failure. Used both as the on-mount
+  // warm-up and as the safety net every call goes through.
+  //
+  // Crucial: when the socket is already alive we return it untouched and NEVER
+  // call login() again. Re-logging in on a live client re-registers the SIP
+  // session, and the resulting duplicate registration makes Telnyx route the
+  // call's media to the stale leg → the call connects and is answered but no
+  // audio flows in either direction. We only log in when we're genuinely not
+  // connected, and only then block until the socket is really CONNECTED.
   const ensureClient = useCallback(async () => {
     setErrorMessage(null);
     setConnecting(true);
@@ -145,35 +200,60 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
         });
         subscribeConnection(clientRef.current);
       }
+      const client = clientRef.current;
+      const stateOf = () => (client.currentConnectionState ?? '').toUpperCase();
 
-      // Bail early when the SDK reports we're still connected — `login()` on a
-      // live client is a no-op at best and a re-handshake at worst, which
-      // throws "already connected" on some SDK versions and leaves us stuck.
-      const currentState = (clientRef.current.currentConnectionState ?? '').toUpperCase();
-      if (currentState === 'CONNECTED' || registered) {
+      // Already connected — by the SDK's own state or our live `registered`
+      // mirror (which the connectionState$ subscription keeps in lock-step with
+      // the socket, flipping false on any drop). Dial on the existing session;
+      // do NOT re-login.
+      if (stateOf() === 'CONNECTED' || registeredRef.current) {
         setReady(true);
-        return clientRef.current;
+        return client;
       }
 
       if (!TELNYX.sipUsername || !TELNYX.sipPassword) {
         throw new Error('Missing Telnyx SIP credentials in constants/Config.ts.');
       }
+
+      // A login is already in flight — the on-mount warm-up, or an SDK
+      // auto-reconnect from enableAppStateManagement. Don't race a second
+      // login (that's what throws "already connected" and wedges the client);
+      // just wait for the in-flight attempt to settle.
+      if (stateOf() === 'CONNECTING' || stateOf() === 'RECONNECTING') {
+        if (await waitForConnected(client)) {
+          setReady(true);
+          return client;
+        }
+      }
+
+      // Genuinely disconnected — log in fresh.
       const config = mod.createCredentialConfig(TELNYX.sipUsername, TELNYX.sipPassword, {
         debug: TELNYX.debug,
         callerName: TELNYX.callerName,
       });
-      await clientRef.current.login(config);
+      await client.login(config);
+
+      // login() resolves when the attempt is *initiated*, not when the socket
+      // is usable. Block until it's genuinely CONNECTED so the call placed
+      // right after this doesn't go out over a half-open socket.
+      if (!(await waitForConnected(client))) {
+        throw new Error(
+          errorRef.current ||
+            'Could not connect to Telnyx. Check your network and try again.',
+        );
+      }
       setReady(true);
-      return clientRef.current;
+      return client;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMessage(msg);
-      console.warn('[voice] login failed', msg);
+      console.warn('[voice] connect failed', msg);
       return null;
     } finally {
       setConnecting(false);
     }
-  }, [registered, setErrorMessage, subscribeConnection]);
+  }, [setErrorMessage, subscribeConnection]);
 
   // Warm the client on mount so "place call" is snappy and config errors
   // surface at app start instead of mid-dial.
@@ -438,11 +518,46 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
   );
 
   const hangup = useCallback(async () => {
-    try {
-      await callRef.current?.hangup?.();
-    } catch (err) {
-      console.warn('[voice] hangup error', err);
-    }
+    const client = clientRef.current;
+    // Hang up every call the SDK currently considers live — not just our cached
+    // `callRef`. After a background → foreground cycle the socket can reconnect
+    // and the SDK rebuilds the call object, leaving `callRef` pointing at a dead
+    // local leg; hanging only that up closes our side while the real call keeps
+    // running on the server (the "it only hung up on me" bug). The SDK's
+    // current call(s) are the ones the live socket actually owns, so their
+    // hangup() is what sends the BYE that ends it for both parties.
+    const targets = new Set<TelnyxCall>();
+    if (client?.currentActiveCall) targets.add(client.currentActiveCall);
+    for (const c of client?.currentCalls ?? []) targets.add(c);
+    if (callRef.current) targets.add(callRef.current);
+    if (targets.size === 0) return;
+
+    await Promise.all(
+      [...targets].map((call) =>
+        Promise.resolve()
+          .then(() => call.hangup?.())
+          .catch((err) => console.warn('[voice] hangup error', err)),
+      ),
+    );
+
+    // UI safety net: if the call object was rebuilt across a reconnect, the
+    // state subscription from subscribeCall() is stale and won't emit the
+    // terminal event that dismisses the active-call screen. The user explicitly
+    // hung up, so tear the local UI down ourselves if it's still showing
+    // shortly after. In the normal path the subscription has already cleared
+    // activeCall by now, so this no-ops.
+    setTimeout(() => {
+      if (!activeCallRef.current) return;
+      stateSubRef.current?.unsubscribe();
+      stateSubRef.current = null;
+      if (sessionIdPollRef.current) {
+        clearInterval(sessionIdPollRef.current);
+        sessionIdPollRef.current = null;
+      }
+      callRef.current = null;
+      CallAudio.stop();
+      setActiveCall(null);
+    }, 1500);
   }, []);
 
   const toggleMute = useCallback(() => {

@@ -54,6 +54,12 @@ export interface TelnyxVoipClient {
     callerNumber?: string,
     customHeaders?: SipHeader[],
   ) => Promise<TelnyxCall>;
+  // The SDK's own view of the live call(s). After a background → foreground
+  // reconnect the SDK can rebuild the call object, so these — not a cached
+  // reference — are the source of truth for hanging up the call that the
+  // current socket actually owns.
+  currentActiveCall?: TelnyxCall | null;
+  currentCalls?: TelnyxCall[];
 }
 
 interface TelnyxModule {
