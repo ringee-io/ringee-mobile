@@ -132,13 +132,11 @@ export default function SignUpScreen() {
             Join our community today
           </Text>
 
-          <View className="flex-row gap-3 mb-6">
-            <View className="flex-1">
-              <SignInWith strategy="oauth_google" variant="button" />
-            </View>
-            <View className="flex-1">
-              <SignInWith strategy="oauth_apple" variant="button" />
-            </View>
+          <View className="gap-3 mb-6">
+            {Platform.OS === 'ios' ? (
+              <SignInWith strategy="oauth_apple" />
+            ) : null}
+            <SignInWith strategy="oauth_google" />
           </View>
 
           <View className="flex-row items-center mb-6">

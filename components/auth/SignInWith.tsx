@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react-native'
 
-import { useTheme } from '@/hooks/useTheme'
+import { useColorScheme } from '@/hooks/useColorScheme'
 import { isClerkAPIResponseError, useSSO } from '@clerk/clerk-expo'
 import { FontAwesome } from '@expo/vector-icons'
+import * as AppleAuthentication from 'expo-apple-authentication'
 import * as AuthSession from 'expo-auth-session'
 import { useRouter } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
 
 type SignInWithProps = {
   strategy: 'oauth_google' | 'oauth_apple'
-  variant?: 'icon' | 'button' | 'compact'
 }
 
 export const useWarmUpBrowser = () => {
@@ -23,19 +23,17 @@ export const useWarmUpBrowser = () => {
   }, [])
 }
 
-const strategyIcons = {
-  oauth_google: 'google' as const,
-  oauth_apple: 'apple' as const,
-}
-
 const strategyLabels = {
   oauth_google: 'Google',
   oauth_apple: 'Apple',
 }
 
-export default function SignInWith({ strategy, variant = 'icon' }: SignInWithProps) {
+const BUTTON_HEIGHT = 52
+const BUTTON_RADIUS = 16
+
+export default function SignInWith({ strategy }: SignInWithProps) {
   useWarmUpBrowser()
-  const t = useTheme()
+  const scheme = useColorScheme() ?? 'light'
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -99,101 +97,74 @@ export default function SignInWith({ strategy, variant = 'icon' }: SignInWithPro
     }
   }, [strategy, startSSOFlow, isLoading, router])
 
-  const label = strategyLabels[strategy]
-  const iconName = strategyIcons[strategy]
-
-  if (variant === 'compact') {
+  // Sign in with Apple must use Apple's system-provided button so it matches the
+  // official "Sign in with Apple" design (App Review Guideline 4 / HIG). We keep
+  // the existing Clerk web SSO flow on press. Light theme → black button, dark
+  // theme → white button, for proper contrast.
+  if (strategy === 'oauth_apple') {
     return (
-      <Pressable
-        onPress={onPress}
-        disabled={isLoading}
-        accessibilityRole="button"
-        accessibilityLabel={`Continue with ${label}`}
-        // style={({ pressed }) => ({
-          // flex: 1,
-          // height: 52,
-          // flexDirection: 'row',
-          // alignItems: 'center',
-          // justifyContent: 'center',
-          // gap: 8,
-          // borderRadius: 14,
-          // borderCurve: 'continuous',
-          // borderWidth: 1,
-          // borderColor: t.border,
-          // backgroundColor: t.surface,
-          // opacity: isLoading ? 0.6 : pressed ? 0.85 : 1,
-        // })}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color={t.text} />
-        ) : (
-          <FontAwesome name={iconName} size={18} color={t.text} style={{ marginLeft: 15 }} />
-        )}
-        <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
-          {label}
-        </Text>
-      </Pressable>
+      <View style={{ height: BUTTON_HEIGHT, opacity: isLoading ? 0.6 : 1 }}>
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+          buttonStyle={
+            scheme === 'dark'
+              ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+              : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+          }
+          cornerRadius={BUTTON_RADIUS}
+          style={{ width: '100%', height: '100%' }}
+          onPress={onPress}
+        />
+      </View>
     )
   }
 
-  if (variant === 'button') {
-    return (
-      <Pressable
-        onPress={onPress}
-        disabled={isLoading}
-        accessibilityRole="button"
-        accessibilityLabel={`Continue with ${label}`}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: 52,
-          paddingHorizontal: 16,
-          borderRadius: 14,
-          borderCurve: 'continuous',
-          borderWidth: 1,
-          borderColor: t.border,
-          backgroundColor: t.surface,
-          opacity: isLoading ? 0.6 : pressed ? 0.85 : 1,
-        })}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color={t.text} style={{ marginRight: 10 }} />
-        ) : (
-          <FontAwesome
-            name={iconName}
-            size={18}
-            color={t.text}
-            style={{ marginRight: 10 }}
-          />
-        )}
-        <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
-          {isLoading ? 'Signing in…' : `Continue with ${label}`}
-        </Text>
-      </Pressable>
-    )
-  }
+  // Google button follows Google's branding (light/dark surface, colored mark,
+  // "Continue with Google" label) and reads unmistakably as a button.
+  // Google's "outline" light/dark surfaces. The #747775 / #8E918F strokes are
+  // Google's spec border colors — visible against both white and dark pages so
+  // the control unmistakably reads as a button (App Review Guideline 4).
+  const isDark = scheme === 'dark'
+  const bg = isDark ? '#131314' : '#FFFFFF'
+  const borderColor = isDark ? '#8E918F' : '#747775'
+  const fg = isDark ? '#E3E3E3' : '#1F1F1F'
 
   return (
     <Pressable
       onPress={onPress}
       disabled={isLoading}
       accessibilityRole="button"
-      accessibilityLabel={`Sign in with ${label}`}
-      style={({ pressed }) => ({
-        width: 64,
-        height: 64,
+      accessibilityLabel="Continue with Google"
+      accessibilityState={{ disabled: isLoading, busy: isLoading }}
+      style={{
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 16,
+        height: BUTTON_HEIGHT,
+        paddingHorizontal: 16,
+        gap: 12,
+        borderRadius: BUTTON_RADIUS,
         borderCurve: 'continuous',
         borderWidth: 1,
-        borderColor: t.border,
-        backgroundColor: t.surface,
-        opacity: isLoading ? 0.6 : pressed ? 0.85 : 1,
-      })}
+        borderColor,
+        backgroundColor: bg,
+        shadowColor: '#000',
+        shadowOpacity: isDark ? 0 : 0.06,
+        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 1 },
+        elevation: isDark ? 0 : 1,
+        opacity: 1,
+      }}
+
     >
-      <FontAwesome name={iconName} size={28} color={t.text} />
+      {isLoading ? (
+        <ActivityIndicator size="small" color={fg} />
+      ) : (
+        <FontAwesome name="google" size={18} color="#4285F4" />
+      )}
+      <Text style={{ color: fg, fontSize: 16, fontWeight: '600', letterSpacing: 0.1 }}>
+        Continue with Google
+      </Text>
     </Pressable>
   )
 }

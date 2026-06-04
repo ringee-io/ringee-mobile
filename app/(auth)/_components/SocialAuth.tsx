@@ -12,18 +12,11 @@ export default function SocialAuth() {
       <View
         style={{
           marginBottom: 20,
-          flexDirection: showApple ? 'row' : 'column',
           gap: 10,
-          justifyContent: 'space-around',
         }}
       >
-        {showApple ? (
-          <SignInWith strategy="oauth_apple" variant="compact" />
-        ) : null}
-        <SignInWith
-          strategy="oauth_google"
-          variant={showApple ? 'compact' : 'button'}
-        />
+        {showApple ? <SignInWith strategy="oauth_apple" /> : null}
+        <SignInWith strategy="oauth_google" />
       </View>
 
       <View

@@ -40,6 +40,7 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState<keyof NotificationPreferences | null>(
     null,
   );
+  const [deleting, setDeleting] = useState(false);
 
   const current: NotificationPreferences = prefs.data ?? {
     callbacks: true,
@@ -89,6 +90,59 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  }
+
+  async function deleteAccountNow() {
+    setDeleting(true);
+    try {
+      // Permanently removes the user from Clerk. This is irreversible and
+      // satisfies App Store guideline 5.1.1(v) (in-app account deletion).
+      await user?.delete();
+      // delete() invalidates the current session; signing out clears any
+      // cached token. It may already be gone, so failures here are harmless.
+      try {
+        await signOut();
+      } catch {
+        // session already invalidated by delete() — nothing to clean up
+      }
+      router.replace('/');
+    } catch {
+      setDeleting(false);
+      Alert.alert(
+        'Could not delete account',
+        'Something went wrong. Please try again, or contact support if the problem persists.',
+      );
+    }
+  }
+
+  function handleDeleteAccount() {
+    // Two confirmation steps guard against accidental deletion, as permitted
+    // by App Review guideline 5.1.1(v).
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your Ringee account and all of your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you absolutely sure?',
+              'Your account, call history, contacts, and settings will be permanently removed.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete permanently',
+                  style: 'destructive',
+                  onPress: deleteAccountNow,
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -206,8 +260,8 @@ export default function SettingsScreen() {
           <SettingsRow icon="info" label="Version" value={version} last />
         </SettingsSection>
 
-        <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-          <Pressable onPress={handleSignOut}>
+        <View style={{ paddingHorizontal: 20, marginTop: 24, gap: 12 }}>
+          <Pressable onPress={handleSignOut} disabled={deleting}>
             <View
               style={{
                 paddingVertical: 14,
@@ -216,13 +270,56 @@ export default function SettingsScreen() {
                 borderWidth: 1,
                 borderColor: t.border,
                 backgroundColor: t.surface,
+                opacity: deleting ? 0.5 : 1,
               }}
             >
-              <Text style={{ color: t.missed, fontWeight: '600', fontSize: 15 }}>
+              <Text style={{ color: t.text, fontWeight: '600', fontSize: 15 }}>
                 Sign out
               </Text>
             </View>
           </Pressable>
+
+          <Pressable
+            onPress={handleDeleteAccount}
+            disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+          >
+            <View
+              style={{
+                paddingVertical: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: t.missed,
+                backgroundColor: 'transparent',
+                opacity: deleting ? 0.6 : 1,
+              }}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color={t.missed} />
+              ) : (
+                <Feather name="trash-2" size={16} color={t.missed} />
+              )}
+              <Text style={{ color: t.missed, fontWeight: '600', fontSize: 15 }}>
+                {deleting ? 'Deleting account…' : 'Delete account'}
+              </Text>
+            </View>
+          </Pressable>
+
+          <Text
+            style={{
+              color: t.textMuted,
+              fontSize: 12,
+              lineHeight: 16,
+              textAlign: 'center',
+            }}
+          >
+            Permanently deletes your account and all associated data.
+          </Text>
         </View>
       </ScrollView>
     </View>
