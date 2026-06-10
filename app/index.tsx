@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/clerk-expo';
 import { Redirect, useRouter } from 'expo-router';
 import { Image, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,101 +10,93 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (isLoaded && isSignedIn) {
+    return <Redirect href="/(tabs)/today" />;
+  }
 
   return (
-    <>
-      <SignedIn>
-        <Redirect href="/(tabs)/today" />
-      </SignedIn>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: t.background,
+        paddingHorizontal: 28,
+        paddingTop: insets.top + 80,
+        paddingBottom: insets.bottom + 24,
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Image
+            source={require('@/assets/images/android-chrome-192x192.png')}
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 16,
+              marginBottom: 24,
+            }}
+            resizeMode="contain"
+            accessible
+            accessibilityLabel={`${APP_NAME} logo`}
+          />
 
-      <SignedOut>
-        <View
+          <Text
+            style={{
+              color: t.text,
+              fontSize: 44,
+              fontWeight: '800',
+              letterSpacing: -1.2,
+              marginLeft: 4,
+            }}
+          >
+            {APP_NAME}
+          </Text>
+        </View>
+        <Text
           style={{
-            flex: 1,
-            backgroundColor: t.background,
-            paddingHorizontal: 28,
-            paddingTop: insets.top + 80,
-            paddingBottom: insets.bottom + 24,
+            marginTop: 8,
+            color: t.textMuted,
+            fontSize: 17,
+            lineHeight: 24,
           }}
         >
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Image
-                source={require('@/assets/images/android-chrome-192x192.png')}
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 16,
-                  marginBottom: 24,
-                }}
-                resizeMode="contain"
-                accessible
-                accessibilityLabel={`${APP_NAME} logo`}
-              />
+          {APP_TAGLINE}.{`\n`}Never miss a callback, meeting, or follow-up.
+        </Text>
+      </View>
 
-              <Text
-                style={{
-                  color: t.text,
-                  fontSize: 44,
-                  fontWeight: '800',
-                  letterSpacing: -1.2,
-                  marginLeft: 4,
-                }}
-              >
-                {APP_NAME}
-              </Text>
-            </View>
+      <View style={{ gap: 10 }}>
+        <Pressable onPress={() => router.push('/(auth)/continue')}>
+          <View
+            style={{
+              backgroundColor: t.text,
+              borderRadius: 14,
+              paddingVertical: 16,
+              alignItems: 'center',
+            }}
+          >
             <Text
               style={{
-                marginTop: 8,
-                color: t.textMuted,
-                fontSize: 17,
-                lineHeight: 24,
+                color: t.background,
+                fontSize: 16,
+                fontWeight: '700',
               }}
             >
-              {APP_TAGLINE}.{'\n'}Never miss a callback, meeting, or follow-up.
+              Continue with Email
             </Text>
           </View>
+        </Pressable>
 
-          <View style={{ gap: 10 }}>
-            <Pressable onPress={() => router.push('/(auth)/continue')}>
-              <View
-                style={{
-                  backgroundColor: t.text,
-                  borderRadius: 14,
-                  paddingVertical: 16,
-                  alignItems: 'center',
-                }}
-              >
-                <Text
-                  style={{
-                    color: t.primaryForeground,
-                    fontWeight: '600',
-                    fontSize: 16,
-                  }}
-                >
-                  Continue
-                </Text>
-              </View>
-            </Pressable>
-            {/* <Pressable
-              onPress={() => router.push('/(auth)/continue')}
-              style={({ pressed }) => ({
-                borderRadius: 14,
-                paddingVertical: 16,
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: t.border,
-                opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <Text style={{ color: t.text, fontWeight: '600', fontSize: 16 }}>
-                Sign in
-              </Text>
-            </Pressable> */}
-          </View>
-        </View>
-      </SignedOut>
-    </>
+        <Text
+          style={{
+            color: t.textMuted,
+            textAlign: 'center',
+            fontSize: 12,
+          }}
+        >
+          By continuing, you agree to our Terms and Privacy Policy.
+        </Text>
+      </View>
+    </View>
   );
 }

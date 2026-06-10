@@ -20,7 +20,6 @@ export * from './NativeCard';
 export * from './NoteModal';
 export * from './OrgSwitcher';
 export * from './OutcomeModal';
-export * from './RecordingPlayer';
 export * from './SearchInput';
 export * from './SectionHeader';
 export * from './StatusPill';

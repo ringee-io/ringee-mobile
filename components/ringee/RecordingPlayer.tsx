@@ -1,9 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import {
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
-} from 'expo-audio';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,6 +18,38 @@ interface Props {
   callId: string;
 }
 
+type ExpoAudioModule = {
+  setAudioModeAsync: (mode: { playsInSilentMode?: boolean }) => Promise<void>;
+  useAudioPlayer: (uri?: string) => {
+    play: () => void;
+    pause: () => void;
+    seekTo: (seconds: number) => Promise<void> | void;
+  };
+  useAudioPlayerStatus: (player: unknown) => {
+    isLoaded: boolean;
+    playing: boolean;
+    didJustFinish: boolean;
+    duration: number;
+    currentTime: number;
+    isBuffering?: boolean;
+  };
+};
+
+let expoAudio: ExpoAudioModule | null = null;
+try {
+  // Avoid crashing the whole screen when running in a binary without ExpoAudio.
+  const loaded = require('expo-audio') as Partial<ExpoAudioModule>;
+  if (
+    typeof loaded?.setAudioModeAsync === 'function' &&
+    typeof loaded?.useAudioPlayer === 'function' &&
+    typeof loaded?.useAudioPlayerStatus === 'function'
+  ) {
+    expoAudio = loaded as ExpoAudioModule;
+  }
+} catch {
+  expoAudio = null;
+}
+
 /**
  * In-app player for an encrypted call recording. On first play it downloads and
  * decrypts the recording to a local file (see `lib/crypto/recording.ts`), then
@@ -30,6 +57,24 @@ interface Props {
  * play/pause and the bar is tap-to-seek.
  */
 export function RecordingPlayer({ recordingUrl, callId }: Props) {
+  if (!expoAudio) {
+    return <RecordingPlayerUnavailable />;
+  }
+
+  return (
+    <RecordingPlayerWithExpoAudio
+      recordingUrl={recordingUrl}
+      callId={callId}
+      audio={expoAudio}
+    />
+  );
+}
+
+function RecordingPlayerWithExpoAudio({
+  recordingUrl,
+  callId,
+  audio,
+}: Props & { audio: ExpoAudioModule }) {
   const t = useTheme();
   const [uri, setUri] = useState<string | undefined>(undefined);
   const [decrypting, setDecrypting] = useState(false);
@@ -37,13 +82,13 @@ export function RecordingPlayer({ recordingUrl, callId }: Props) {
   const [barWidth, setBarWidth] = useState(0);
   const pendingPlay = useRef(false);
 
-  const player = useAudioPlayer(uri);
-  const status = useAudioPlayerStatus(player);
+  const player = audio.useAudioPlayer(uri);
+  const status = audio.useAudioPlayerStatus(player);
 
   // Recording playback is media, not call audio — play even on silent switch.
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-  }, []);
+    audio.setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+  }, [audio]);
 
   // Autoplay once the freshly decrypted source has loaded.
   useEffect(() => {
@@ -194,6 +239,24 @@ export function RecordingPlayer({ recordingUrl, callId }: Props) {
             Tap to play · plays in-app
           </Text>
         )}
+      </View>
+    </NativeCard>
+  );
+}
+
+function RecordingPlayerUnavailable() {
+  const t = useTheme();
+
+  return (
+    <NativeCard style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <Feather name="alert-triangle" size={16} color={t.warning} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>
+          Recording playback unavailable
+        </Text>
+        <Text style={{ color: t.textMuted, fontSize: 12 }}>
+          Rebuild and reinstall the dev app to include ExpoAudio.
+        </Text>
       </View>
     </NativeCard>
   );
