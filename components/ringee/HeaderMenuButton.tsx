@@ -73,8 +73,8 @@ export function HeaderMenuButton({ items, title, message }: Props) {
       hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel="More options"
-      style={({ pressed }) => [
-        { paddingHorizontal: 4, paddingVertical: 4, opacity: pressed ? 0.6 : 1 },
+      style={[
+        { paddingHorizontal: 4, paddingVertical: 4, opacity: 1 },
       ]}
     >
       <Feather name="more-horizontal" size={22} color={t.text} />

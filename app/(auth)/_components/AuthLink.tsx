@@ -18,11 +18,11 @@ export default function AuthLink({ onPress, text, align = 'center' }: AuthLinkPr
     <Pressable
       onPress={onPress}
       hitSlop={10}
-      style={({ pressed }) => ({
+      style={{
         alignSelf,
         paddingVertical: 6,
-        opacity: pressed ? 0.5 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       <Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{text}</Text>
     </Pressable>

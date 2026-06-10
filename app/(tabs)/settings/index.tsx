@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar, OrgSwitcher } from '@/components/ringee';
+import { Avatar, CreditPill, OrgSwitcher } from '@/components/ringee';
 import { WEB_URL_PRIVACY, WEB_URL_TERMS } from '@/constants/Config';
 import { useTheme } from '@/hooks/useTheme';
 import { Feather } from '@expo/vector-icons';
@@ -150,6 +150,7 @@ export default function SettingsScreen() {
       <Stack.Screen
         options={{
           title: 'Settings',
+          headerLeft: () => <CreditPill />,
           headerRight: () => <OrgSwitcher />,
         }}
       />
@@ -163,9 +164,9 @@ export default function SettingsScreen() {
           onPress={() => router.push('/(tabs)/settings/profile' as never)}
           accessibilityRole="button"
           accessibilityLabel="Open profile settings"
-          style={({ pressed }) => ({
-            opacity: pressed ? 0.7 : 1,
-          })}
+          style={{
+            opacity: 1,
+          }}
         >
           <View
             style={{
@@ -469,7 +470,7 @@ function SettingsLinkRow({
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={label}
-      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      style={{ opacity: 1 }}
     >
       <View
         style={{

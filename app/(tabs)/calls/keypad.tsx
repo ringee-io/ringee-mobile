@@ -16,12 +16,14 @@ import {
   prettyE164,
 } from '@/lib/phone';
 import { useVoice } from '@/lib/voice';
+import { useCredit } from '@/lib/credit/CreditProvider';
 import { Feather } from '@expo/vector-icons';
 
 export default function KeypadSheetScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const voice = useVoice();
+  const credit = useCredit();
 
   const [raw, setRaw] = useState('');
   const [topMatch, setTopMatch] = useState<ContactSummary | null>(null);
@@ -70,6 +72,7 @@ export default function KeypadSheetScreen() {
 
   const dial = async (destination: string) => {
     if (voice.activeCall || !destination) return;
+    if (!credit.guardCall()) return;
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -105,7 +108,7 @@ export default function KeypadSheetScreen() {
       {topMatch ? (
         <Pressable
           onPress={() => dial(topMatch.phoneNumber)}
-          style={({ pressed }) => ({
+          style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: 12,
@@ -117,8 +120,8 @@ export default function KeypadSheetScreen() {
             borderWidth: 1,
             borderColor: t.border,
             marginTop: 12,
-            opacity: pressed ? 0.6 : 1,
-          })}
+            opacity: 1,
+          }}
         >
           <Avatar name={topMatch.name} fallback={topMatch.phoneNumber} size={36} />
           <View style={{ flex: 1 }}>
@@ -155,12 +158,12 @@ export default function KeypadSheetScreen() {
           disabled={!canCall}
           accessibilityRole="button"
           accessibilityLabel="Place call"
-          style={({ pressed }) => ({
+          style={{
             width: 72,
             height: 72,
             borderRadius: 36,
-            opacity: !canCall ? 0.4 : pressed ? 0.85 : 1,
-          })}
+            opacity: !canCall ? 0.4 : 1,
+          }}
         >
           {LIQUID_GLASS ? (
             <GlassView
@@ -201,13 +204,13 @@ export default function KeypadSheetScreen() {
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Backspace"
-          style={({ pressed }) => ({
+          style={{
             width: 56,
             height: 56,
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: !raw ? 0 : pressed ? 0.5 : 1,
-          })}
+            opacity: !raw ? 0 : 1,
+          }}
         >
           <Feather name="delete" size={24} color={t.text} />
         </Pressable>

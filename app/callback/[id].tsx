@@ -24,7 +24,7 @@ import {
 } from '@/components/ringee';
 import type { HeaderMenuItem } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
-import { CallbacksApi } from '@/lib/api';
+import { CallbacksApi, ContactsApi } from '@/lib/api';
 import type { Callback } from '@/lib/api';
 import { useResource } from '@/lib/hooks/useResource';
 import {
@@ -44,6 +44,13 @@ export default function CallbackDetailScreen() {
     const list = await CallbacksApi.listCallbacks({ limit: 100 });
     return list.data.find((c) => c.id === id) ?? null;
   }, [id]);
+
+  // Load the linked contact so the callback can show a bit of its info inline.
+  const contactId = cb.data?.contactId;
+  const contact = useResource(
+    async () => (contactId ? ContactsApi.getContact(contactId) : null),
+    [contactId],
+  );
 
   const [reschedOpen, setReschedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -107,7 +114,7 @@ export default function CallbackDetailScreen() {
   }
 
   const c: Callback = cb.data;
-  const name = c.contactName || c.phoneNumber || 'Contact';
+  // const name = c.contactName || c.phoneNumber || 'Contact';
   const isCompleted = c.status === 'completed';
   const tone =
     c.status === 'completed'
@@ -142,12 +149,43 @@ export default function CallbackDetailScreen() {
         { label: 'Cancel callback', onPress: cancelCb, destructive: true },
       ];
 
+  const ct = contact.data;
+  const contactName = ct?.name || ct?.phoneNumber || ct?.email || 'Contact';
+
+  const contactRows = (
+    ct
+      ? [
+          ct.phoneNumber && {
+            icon: 'phone' as const,
+            label: 'Phone',
+            value: ct.phoneNumber,
+          },
+          ct.email && { icon: 'mail' as const, label: 'Email', value: ct.email },
+          ct.company && {
+            icon: 'briefcase' as const,
+            label: 'Company',
+            value: ct.company,
+          },
+          ct.jobTitle && {
+            icon: 'user' as const,
+            label: 'Title',
+            value: ct.jobTitle,
+          },
+          ct.lastContactedAt && {
+            icon: 'clock' as const,
+            label: 'Last contacted',
+            value: formatRelativeFromNow(ct.lastContactedAt),
+          },
+        ].filter(Boolean)
+      : []
+  ) as { icon: keyof typeof Feather.glyphMap; label: string; value: string }[];
+
   return (
     <View style={{ flex: 1, backgroundColor: t.background }}>
       <Stack.Screen
         options={{
           title: 'Callback',
-          headerRight: () => <HeaderMenuButton items={menuItems} title={name} />,
+          headerRight: () => <HeaderMenuButton items={menuItems} title={contactName} />,
         }}
       />
 
@@ -162,7 +200,7 @@ export default function CallbackDetailScreen() {
         contentInsetAdjustmentBehavior="automatic"
       >
         <View style={{ alignItems: 'center', gap: 10 }}>
-          <Avatar name={c.contactName} fallback={c.phoneNumber} size={72} />
+          <Avatar name={contactName} fallback={ct?.phoneNumber} size={72} />
           <Text
             style={{
               color: t.text,
@@ -172,7 +210,7 @@ export default function CallbackDetailScreen() {
               textAlign: 'center',
             }}
           >
-            {name}
+            {contactName}
           </Text>
           {c.contactCompany ? (
             <Text style={{ color: t.textMuted, fontSize: 14 }}>
@@ -195,6 +233,33 @@ export default function CallbackDetailScreen() {
             last
           />
         </NativeCard>
+
+        {contactRows.length > 0 ? (
+          <View style={{ gap: 8 }}>
+            <Text
+              style={{
+                color: t.textMuted,
+                fontSize: 12,
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: 0.6,
+              }}
+            >
+              Contact
+            </Text>
+            <NativeCard>
+              {contactRows.map((r, i) => (
+                <DetailRow
+                  key={r.label}
+                  icon={r.icon}
+                  label={r.label}
+                  value={r.value}
+                  last={i === contactRows.length - 1}
+                />
+              ))}
+            </NativeCard>
+          </View>
+        ) : null}
 
         {c.note ? (
           <NativeCard>

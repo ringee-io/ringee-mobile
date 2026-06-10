@@ -132,7 +132,7 @@ export default function ActiveCallScreen() {
           hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Minimize call"
-          style={({ pressed }) => ({
+          style={{
             width: 36,
             height: 36,
             borderRadius: 18,
@@ -141,8 +141,8 @@ export default function ActiveCallScreen() {
             backgroundColor: t.surface,
             borderWidth: 1,
             borderColor: t.border,
-            opacity: pressed ? 0.7 : 1,
-          })}
+            opacity: 1,
+          }}
         >
           <Feather name="chevron-down" size={20} color={t.text} />
         </Pressable>
@@ -160,7 +160,7 @@ export default function ActiveCallScreen() {
       <View style={{ alignItems: 'center', marginTop: 36 }}>
         <View style={{ position: 'relative' }}>
           <Avatar
-            name={displayName ?? undefined}
+            name={displayName ?? 'Unknown'}
             fallback={call.destination}
             size={120}
           />
@@ -351,12 +351,12 @@ export default function ActiveCallScreen() {
           }}
           accessibilityRole="button"
           accessibilityLabel="End call"
-          style={({ pressed }) => ({
+          style={{
             width: 76,
             height: 76,
             borderRadius: 38,
-            opacity: pressed ? 0.85 : 1,
-          })}
+            opacity: 1,
+          }}
         >
           {LIQUID_GLASS ? (
             <GlassView
@@ -447,7 +447,7 @@ function ControlButton({
         disabled={disabled || loading}
         accessibilityRole="button"
         accessibilityLabel={label}
-        style={({ pressed }) => ({
+        style={{
           width: 72,
           height: 72,
           borderRadius: 36,
@@ -456,8 +456,8 @@ function ControlButton({
           borderColor: active ? 'transparent' : t.border,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: pressed && !disabled ? 0.7 : 1,
-        })}
+          opacity: 1,
+        }}
       >
         {loading ? (
           <ActivityIndicator size="small" color={fg} />

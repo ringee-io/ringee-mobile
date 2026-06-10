@@ -19,6 +19,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  CreditPill,
   OrgSwitcher,
   RowSeparator,
   SectionHeader,
@@ -222,7 +223,10 @@ export default function TodayScreen() {
   return (
     <>
       <Stack.Screen
-        options={{ headerRight: () => <OrgSwitcher /> }}
+        options={{
+          headerLeft: () => <CreditPill />,
+          headerRight: () => <OrgSwitcher />,
+        }}
       />
       <SectionList
       sections={sections}

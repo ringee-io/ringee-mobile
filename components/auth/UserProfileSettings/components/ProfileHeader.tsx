@@ -222,20 +222,20 @@ export default function ProfileHeader({ user, onProfileUpdated }: ProfileHeaderP
   }
 
   const getDisplayName = () => {
-    if (user.firstName && user.lastName) {
+    if (user?.firstName && user?.lastName) {
       return `${user.firstName} ${user.lastName}`
     }
     if (user.firstName) {
       return user.firstName
     }
-    if (user.fullName) {
+    if (user?.fullName) {
       return user.fullName
     }
     return user.emailAddresses[0]?.emailAddress || 'User'
   }
 
   const getDisplayUsername = () => {
-    if (user.username) {
+    if (user?.username) {
       return `@${user.username}`
     }
     return null

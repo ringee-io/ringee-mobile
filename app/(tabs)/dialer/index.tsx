@@ -11,14 +11,15 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from 'react-native-bottom-tabs';
 
 import {
   Avatar,
   ContactResultsSheet,
+  CreditPill,
   Keypad,
 } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
+import { useCredit } from '@/lib/credit/CreditProvider';
 import { ContactsApi, type ContactSummary } from '@/lib/api';
 import {
   DEFAULT_COUNTRY,
@@ -35,8 +36,8 @@ export default function DialerScreen() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
   const voice = useVoice();
+  const credit = useCredit();
   const params = useLocalSearchParams<{ to?: string }>();
 
   // `raw` is exactly what the keypad produced (digits plus an optional leading
@@ -125,6 +126,9 @@ export default function DialerScreen() {
 
   const dial = async (destination: string) => {
     if (voice.activeCall) return;
+    // Gate on credit / free trial before dialing so we never connect a call the
+    // backend will immediately hang up for lack of balance.
+    if (!credit.guardCall()) return;
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -140,9 +144,9 @@ export default function DialerScreen() {
         flex: 1,
         backgroundColor: t.background,
         paddingTop: insets.top + 6,
-        // Reserve room for the (floating) native tab bar so the keypad and
-        // call button are never hidden behind it.
-        paddingBottom: tabBarHeight + 12,
+        // Reserve room for the native tab bar so the keypad and call button are
+        // never hidden behind it (native tabs don't expose a measurable height).
+        paddingBottom: insets.bottom + 64,
         paddingHorizontal: 20,
       }}
     >
@@ -171,25 +175,29 @@ export default function DialerScreen() {
                   : t.textMuted
           }
         />
-        <Pressable
-          onPress={() => router.push('/contacts' as never)}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Contacts"
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: t.surface,
-            borderWidth: 1,
-            borderColor: t.border,
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <Feather name="user-plus" size={18} color={t.text} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <CreditPill />
+          <Pressable
+            onPress={() => router.push('/contacts' as never)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Contacts"
+            android_ripple={{ color: t.border, borderless: true }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: t.surface,
+              borderWidth: 1,
+              borderColor: t.border,
+              opacity: 1,
+            }}
+          >
+            <Feather name="user-plus" size={18} color={t.text} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Dialed number, sitting just under the top bar */}
@@ -225,14 +233,14 @@ export default function DialerScreen() {
         >
           <Pressable
             onPress={() => dial(topMatch.phoneNumber)}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 14,
               paddingHorizontal: 16,
               paddingVertical: 14,
-              opacity: pressed ? 0.6 : 1,
-            })}
+              opacity: 1,
+            }}
           >
             <Avatar name={topMatch.name} fallback={topMatch.phoneNumber} size={40} />
             <View style={{ flex: 1, gap: 2 }}>
@@ -254,14 +262,14 @@ export default function DialerScreen() {
               <View style={{ height: 1, backgroundColor: t.border, marginLeft: 70 }} />
               <Pressable
                 onPress={() => setResultsOpen(true)}
-                style={({ pressed }) => ({
+                style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 14,
                   paddingHorizontal: 16,
                   paddingVertical: 13,
-                  opacity: pressed ? 0.6 : 1,
-                })}
+                  opacity: 1,
+                }}
               >
                 <View style={{ width: 40, alignItems: 'center' }}>
                   <Feather name="search" size={18} color={t.textMuted} />
@@ -297,12 +305,12 @@ export default function DialerScreen() {
           disabled={!canCall}
           accessibilityRole="button"
           accessibilityLabel="Place call"
-          style={({ pressed }) => ({
+          style={{
             width: 68,
             height: 68,
             borderRadius: 34,
-            opacity: !canCall ? 0.4 : pressed ? 0.85 : 1,
-          })}
+            opacity: !canCall ? 0.4 : 1,
+          }}
         >
           {LIQUID_GLASS ? (
             <GlassView
@@ -343,13 +351,13 @@ export default function DialerScreen() {
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Backspace"
-          style={({ pressed }) => ({
+          style={{
             width: 56,
             height: 56,
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: !raw ? 0 : pressed ? 0.5 : 1,
-          })}
+            opacity: !raw ? 0 : 1,
+          }}
         >
           <Feather name="delete" size={24} color={t.text} />
         </Pressable>
@@ -380,7 +388,7 @@ function CallerIdPill({ label, onPress, selectable, statusColor }: CallerIdPillP
       onPress={onPress}
       disabled={!selectable}
       hitSlop={8}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: 7,
@@ -391,8 +399,8 @@ function CallerIdPill({ label, onPress, selectable, statusColor }: CallerIdPillP
         backgroundColor: t.surface,
         borderWidth: 1,
         borderColor: t.border,
-        opacity: pressed ? 0.7 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       <View style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: statusColor }} />
       <Text style={{ color: t.textMuted, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>

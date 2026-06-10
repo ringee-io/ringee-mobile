@@ -14,6 +14,7 @@ import { ActionSheetIOS, Alert, Platform } from 'react-native';
 
 import { TELNYX } from '@/constants/Config';
 import { ApiError, TelephonyApi } from '@/lib/api';
+import { emitRefresh } from '@/lib/refreshBus';
 
 import { buildCustomHeaders, isTerminal, mapSdkState, normalizeDestination } from './callState';
 import { CallAudio } from './callAudio';
@@ -374,6 +375,9 @@ export function TelnyxVoiceProvider({ children }: { children: ReactNode }) {
             if (!answered && !reachedActive) {
               onFailedFast(errorRef.current, reachedRinging);
             }
+            // Refresh credit so the header balance and call gating reflect the
+            // per-minute deduction and any consumed free-call trial.
+            emitRefresh('credit');
           }, 600);
         }
       };

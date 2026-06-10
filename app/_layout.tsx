@@ -22,6 +22,7 @@ import {
   MiniCallBar,
 } from '@/components/ringee';
 import { AuthBridge } from '@/lib/auth/AuthBridge';
+import { CreditProvider } from '@/lib/credit/CreditProvider';
 import { TelnyxVoiceProvider } from '@/lib/voice';
 
 // Keep the native splash up until our animated one is mounted and ready to take
@@ -98,6 +99,7 @@ export default function RootLayout() {
           <ThemeProvider value={navTheme}>
             <AuthBridge />
             <TelnyxVoiceProvider>
+              <CreditProvider>
               <CallBarLayoutProvider>
                 <CallBarTopInset>
                   <Stack
@@ -142,6 +144,7 @@ export default function RootLayout() {
                 <MiniCallBar />
                 <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
               </CallBarLayoutProvider>
+              </CreditProvider>
             </TelnyxVoiceProvider>
           </ThemeProvider>
         </SafeAreaProvider>

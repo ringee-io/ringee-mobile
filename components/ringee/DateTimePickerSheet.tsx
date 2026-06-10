@@ -133,7 +133,7 @@ export function DateTimePickerSheet({
                 if (Platform.OS !== 'web') Haptics.selectionAsync();
                 apply(p.build());
               }}
-              style={({ pressed }) => ({
+              style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 7,
@@ -144,11 +144,11 @@ export function DateTimePickerSheet({
                 backgroundColor: t.surface,
                 borderWidth: 1,
                 borderColor: t.border,
-                opacity: pressed ? 0.6 : 1,
+                opacity: 1,
                 // Two roughly-even columns.
                 flexGrow: 1,
                 flexBasis: '44%',
-              })}
+              }}
             >
               <Feather name={p.icon} size={15} color={t.icon} />
               <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
@@ -225,7 +225,7 @@ export function DateTimePickerSheet({
             }
             apply(custom);
           }}
-          style={({ pressed }) => ({
+          style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
@@ -234,8 +234,8 @@ export function DateTimePickerSheet({
             borderRadius: 16,
             borderCurve: 'continuous',
             backgroundColor: t.primary,
-            opacity: busy ? 0.5 : pressed ? 0.85 : 1,
-          })}
+            opacity: busy ? 0.5 : 1,
+          }}
         >
           <Feather name="check" size={18} color={t.primaryForeground} />
           <Text
@@ -317,7 +317,7 @@ function AndroidField({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 14,
@@ -327,8 +327,8 @@ function AndroidField({
         backgroundColor: t.surface,
         borderWidth: 1,
         borderColor: t.border,
-        opacity: pressed ? 0.6 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       <Feather name={icon} size={16} color={t.icon} />
       <Text style={{ color: t.text, fontSize: 15, fontWeight: '600', marginLeft: 10, flex: 1 }}>

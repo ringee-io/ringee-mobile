@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActionRow,
   CallButton,
+  CreditPill,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -115,7 +116,12 @@ export default function CallsScreen() {
 
   return (
     <>
-    <Stack.Screen options={{ headerRight: () => <OrgSwitcher /> }} />
+    <Stack.Screen
+      options={{
+        headerLeft: () => <CreditPill />,
+        headerRight: () => <OrgSwitcher />,
+      }}
+    />
     <FlatList<Call>
       data={calls.items}
       keyExtractor={(c) => c.id}
@@ -159,6 +165,9 @@ export default function CallsScreen() {
                 ) : null}
                 {item.hasRecording ? (
                   <StatusPill label="Rec" tone="info" />
+                ) : null}
+                {item.hasTranscription ? (
+                  <Feather name="file-text" size={12} color={t.meeting} />
                 ) : null}
                 {item.durationSeconds ? (
                   <Text style={{ color: t.textMuted, fontSize: 12 }}>
@@ -233,12 +242,12 @@ function QuickAction({ icon, label, onPress }: QuickActionProps) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={{
         flex: 1,
         alignItems: 'center',
         gap: 8,
-        opacity: pressed ? 0.6 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       {LIQUID_GLASS ? (
         <GlassView
@@ -307,14 +316,14 @@ function FilterSegment({ value, onChange }: FilterSegmentProps) {
             onPress={() => onChange(opt.id)}
             accessibilityRole="button"
             accessibilityLabel={opt.label}
-            style={({ pressed }) => ({
+            style={{
               paddingHorizontal: 14,
               paddingVertical: 7,
               borderRadius: 999,
               backgroundColor: active ? t.background : 'transparent',
-              opacity: pressed && !active ? 0.6 : 1,
+              opacity: 1,
               boxShadow: active ? '0 1px 2px rgba(0, 0, 0, 0.08)' : 'none',
-            })}
+            }}
           >
             <Text
               style={{

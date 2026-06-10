@@ -17,11 +17,11 @@ export default function AuthBackButton({ onPress, label = 'Back' }: AuthBackButt
       hitSlop={12}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={{
         alignSelf: 'flex-start',
         marginBottom: 24,
-        opacity: pressed ? 0.5 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         <Feather name="chevron-left" size={20} color={t.text} />

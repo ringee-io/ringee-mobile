@@ -183,6 +183,8 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (55.0.17):
     - ExpoModulesCore
+  - ExpoAudio (55.0.14):
+    - ExpoModulesCore
   - ExpoBlur (55.0.14):
     - ExpoModulesCore
   - ExpoCrypto (55.0.15):
@@ -2492,6 +2494,7 @@ DEPENDENCIES:
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoAudio (from `../node_modules/expo-audio/ios`)
   - ExpoBlur (from `../node_modules/expo-blur/ios`)
   - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
   - ExpoDevice (from `../node_modules/expo-device/ios`)
@@ -2638,6 +2641,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-apple-authentication/ios"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoAudio:
+    :path: "../node_modules/expo-audio/ios"
   ExpoBlur:
     :path: "../node_modules/expo-blur/ios"
   ExpoCrypto:
@@ -2870,6 +2875,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 833795f4c98a674d36cbc12b11b21756c38e01e8
   ExpoAppleAuthentication: 08b3d0e502f46731abdf4c59203769fb685f66c8
   ExpoAsset: 7721c5c4ae2a7c3c8147a046727ac6c020b05648
+  ExpoAudio: a826903abdeba843cde8602bd1c077d808b31f1d
   ExpoBlur: 7a86e84e7728108fa6908d7103fa527705a3dbbf
   ExpoCrypto: e7f4a14eaa6d6a6a2196cd7391d171c84be0b1aa
   ExpoDevice: b8a65afe42c3c5934eb6983870672fe785b39dea

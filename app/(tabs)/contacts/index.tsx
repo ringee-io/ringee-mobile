@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActionRow,
   CallButton,
+  CreditPill,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -56,6 +57,7 @@ export default function ContactsScreen() {
     <>
       <Stack.Screen
         options={{
+          headerLeft: () => <CreditPill />,
           headerRight: () => <OrgSwitcher />,
           headerSearchBarOptions: {
             placeholder: 'Search name, company, phone',

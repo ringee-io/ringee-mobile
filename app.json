@@ -22,6 +22,7 @@
     },
     "android": {
       "package": "com.ringee.mobile",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-chrome-512x512.png",
         "backgroundColor": "#ffffff"
@@ -71,7 +72,14 @@
       ],
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "./plugins/withProximitySensor"
+      "./plugins/withProximitySensor",
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

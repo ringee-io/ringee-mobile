@@ -99,13 +99,13 @@ export function OrgSwitcher() {
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel="Switch organization"
-        style={({ pressed }) => ({
+        style={{
           width: TAP_TARGET,
           height: TAP_TARGET,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: pressed ? 0.6 : 1,
-        })}
+          opacity: 1,
+        }}
       >
         <TriggerAvatar
           imageUrl={triggerImage}
@@ -273,14 +273,14 @@ function OrgRow({
       accessibilityRole="button"
       accessibilityLabel={`Switch to ${label}`}
       accessibilityState={{ selected: active }}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
         paddingVertical: 12,
         paddingHorizontal: 4,
-        opacity: pressed ? 0.6 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       <View
         style={{
@@ -365,11 +365,11 @@ function LoadMoreButton({
     <Pressable
       onPress={onPress}
       disabled={loading}
-      style={({ pressed }) => ({
+      style={{
         paddingVertical: 12,
         alignItems: 'center',
-        opacity: pressed || loading ? 0.6 : 1,
-      })}
+        opacity: loading ? 0.6 : 1,
+      }}
     >
       {loading ? (
         <ActivityIndicator color={t.text} />

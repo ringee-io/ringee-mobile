@@ -131,7 +131,7 @@ function Key({ digit, letters, size, onPress, onLongPress }: KeyProps) {
         delayLongPress={350}
         accessibilityRole="button"
         accessibilityLabel={`Key ${digit}`}
-        style={({ pressed }) => [dims, { opacity: pressed ? 0.55 : 1 }]}
+        style={[dims, { opacity: 1 }]}
       >
         <GlassView
           glassEffectStyle="regular"
@@ -153,12 +153,12 @@ function Key({ digit, letters, size, onPress, onLongPress }: KeyProps) {
       accessibilityRole="button"
       accessibilityLabel={`Key ${digit}`}
       android_ripple={{ color: t.border, borderless: false, radius: size / 2 }}
-      style={({ pressed }) => [
+      style={[
         dims,
         center,
         {
           backgroundColor: t.surface,
-          opacity: Platform.OS === 'android' ? 1 : pressed ? 0.55 : 1,
+          opacity: 1,
           overflow: 'hidden',
         },
       ]}

@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Linking, Platform, Pressable, Text, View } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
+import { useOptionalCredit } from '@/lib/credit/CreditProvider';
 import { useOptionalVoice } from '@/lib/voice';
 import { Feather } from '@expo/vector-icons';
 
@@ -24,6 +25,7 @@ export function CallButton({
 }: Props) {
   const t = useTheme();
   const voice = useOptionalVoice();
+  const credit = useOptionalCredit();
   const isDisabled = !phoneNumber || disabled;
 
   async function handlePress() {
@@ -35,6 +37,8 @@ export function CallButton({
       onPress(phoneNumber);
       return;
     }
+    // Block the call and surface the credit flow when there's no balance/trial.
+    if (credit && !credit.guardCall()) return;
     // Prefer in-app Telnyx voice; fall back to the OS dialer if the voice
     // provider isn't available (e.g. web bundle or SDK not yet installed).
     // When the user has 2+ caller IDs we prompt them which one to dial from,

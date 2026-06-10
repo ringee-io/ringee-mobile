@@ -1,8 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Linking,
-  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -21,6 +19,8 @@ import {
   NoteModal,
   OutcomeModal,
 } from '@/components/ringee';
+import { CallTranscript } from '@/components/ringee/CallTranscript';
+import { RecordingPlayer } from '@/components/ringee/RecordingPlayer';
 import type { HeaderMenuItem } from '@/components/ringee';
 import { useTheme } from '@/hooks/useTheme';
 import { CallsApi } from '@/lib/api';
@@ -199,25 +199,10 @@ export default function CallDetailScreen() {
         ) : null}
 
         {c.hasRecording && c.recordingUrl ? (
-          <Pressable
-            onPress={() => Linking.openURL(c.recordingUrl!).catch(() => {})}
-          >
-            <NativeCard
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
-            >
-              <Feather name="play-circle" size={22} color={t.accent} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: t.text, fontWeight: '600' }}>
-                  Listen to recording
-                </Text>
-                <Text style={{ color: t.textMuted, fontSize: 13 }}>
-                  Opens externally
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={t.iconMuted} />
-            </NativeCard>
-          </Pressable>
+          <RecordingPlayer recordingUrl={c.recordingUrl} callId={c.id} />
         ) : null}
+
+        <CallTranscript callId={c.id} />
 
         {Array.isArray(c.notes) && c.notes.length > 0 ? (
           <View style={{ gap: 8 }}>

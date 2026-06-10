@@ -262,7 +262,7 @@ export default function ScheduleSheetScreen() {
                       setQuery('');
                       setResults([]);
                     }}
-                    style={({ pressed }) => ({
+                    style={{
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 12,
@@ -270,8 +270,8 @@ export default function ScheduleSheetScreen() {
                       paddingVertical: 12,
                       borderTopWidth: i === 0 ? 0 : 1,
                       borderTopColor: t.border,
-                      opacity: pressed ? 0.6 : 1,
-                    })}
+                      opacity: 1,
+                    }}
                   >
                     <Avatar name={c.name} fallback={c.phoneNumber} size={32} />
                     <View style={{ flex: 1 }}>
@@ -385,10 +385,10 @@ export default function ScheduleSheetScreen() {
           onPress={submit}
           accessibilityRole="button"
           accessibilityLabel={isMeeting ? 'Schedule meeting' : 'Schedule callback'}
-          style={({ pressed }) => ({
+          style={{
             borderRadius: 16,
-            opacity: !canSubmit ? 0.4 : pressed ? 0.85 : 1,
-          })}
+            opacity: !canSubmit ? 0.4 : 1,
+          }}
         >
           {LIQUID_GLASS ? (
             <GlassView
@@ -526,7 +526,7 @@ function AndroidField({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 14,
@@ -536,8 +536,8 @@ function AndroidField({
         backgroundColor: t.surface,
         borderWidth: 1,
         borderColor: t.border,
-        opacity: pressed ? 0.6 : 1,
-      })}
+        opacity: 1,
+      }}
     >
       <Feather name={icon} size={16} color={t.icon} />
       <Text

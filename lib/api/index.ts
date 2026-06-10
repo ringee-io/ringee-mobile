@@ -9,3 +9,6 @@ export * as RemindersApi from './reminders';
 export * as PushApi from './push';
 export * as PreferencesApi from './preferences';
 export * as TelephonyApi from './telephony';
+export * as CreditApi from './credit';
+export * as EncryptionApi from './encryption';
+export * as TranscriptionApi from './transcription';

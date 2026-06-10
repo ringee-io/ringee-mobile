@@ -89,8 +89,66 @@ export interface Call {
   outcomeNote?: string | null;
   hasRecording?: boolean;
   recordingUrl?: string | null;
+  hasTranscription?: boolean;
   notes?: { id: string; content: string; createdAt: string }[];
 }
+
+// ─── Transcription ──────────────────────────────────────────────────────────
+// Mirrors the backend CallTranscriptionView (packages/services transcription),
+// same shape the web client consumes.
+
+export type TranscriptionStatus =
+  | 'idle'
+  | 'starting'
+  | 'transcribing'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'unavailable'
+  | 'stopped';
+
+export type TranscriptionSource = 'realtime' | 'recording';
+
+export interface TranscriptSegment {
+  id: string;
+  text: string;
+  speaker: number | null;
+  track: string | null;
+  confidence: number | null;
+  startMs: number | null;
+  endMs: number | null;
+  createdAt: string;
+}
+
+export interface Transcription {
+  id: string;
+  source: TranscriptionSource;
+  status: TranscriptionStatus;
+  text: string | null;
+  language: string | null;
+  confidence: number | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  segments: TranscriptSegment[];
+}
+
+export interface CallTranscription {
+  callId: string;
+  recordingAvailable: boolean;
+  transcriptionEnabled: boolean;
+  realtime: Transcription | null;
+  recording: Transcription | null;
+  livePartial: { track: string | null; text: string } | null;
+}
+
+/** Statuses that mean "something is in flight" → keep polling. */
+export const IN_FLIGHT_TRANSCRIPTION_STATUSES: TranscriptionStatus[] = [
+  'starting',
+  'transcribing',
+  'processing',
+];
 
 export interface Callback {
   id: string;

@@ -82,10 +82,10 @@ export default function AuthButton({
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
-      style={({ pressed }) => ({
+      style={{
         borderRadius: 16,
-        opacity: isDisabled ? 0.45 : pressed ? 0.9 : 1,
-      })}
+        opacity: isDisabled ? 0.45 : 1,
+      }}
     >
       {isPrimary && LIQUID_GLASS ? (
         <GlassView

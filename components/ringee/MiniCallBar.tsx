@@ -209,7 +209,7 @@ export function MiniCallBar() {
   const number = parsed.country ? `+${parsed.country.dialCode} ${parsed.formatted}` : call.destination;
   const displayName = contactName?.trim() || 'Unknown';
   const title = contactName?.trim() || number;
-  const initial = displayName.charAt(0).toUpperCase() || 'U';
+  const initial = displayName?.charAt(0).toUpperCase() || 'U';
 
   const vertical = dragging || dock !== 'top';
 
@@ -421,7 +421,7 @@ function ControlButton({
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={{
         width: 46,
         height: 46,
         borderRadius: 23,
@@ -430,8 +430,8 @@ function ControlButton({
         backgroundColor: bg,
         borderWidth: active ? 0 : 1,
         borderColor: t.border,
-        opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
-      })}
+        opacity: disabled ? 0.4 : 1,
+      }}
     >
       <Feather name={icon} size={19} color={fg} />
     </AnimatedPressable>

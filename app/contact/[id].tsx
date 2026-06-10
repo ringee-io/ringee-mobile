@@ -63,11 +63,11 @@ export default function ContactDetailScreen() {
   }
 
   const c = contact.data;
-  const displayName = c.name || c.phoneNumber;
+  const displayName = c?.name || c?.phoneNumber || 'Unknown';
 
   const menuItems: HeaderMenuItem[] = [
     { label: 'Add note', onPress: () => setNoteOpen(true) },
-    ...(c.email
+    ...(c?.email
       ? [
           {
             label: 'Email',
